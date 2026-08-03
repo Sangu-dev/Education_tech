@@ -1,0 +1,17 @@
+{
+  "name": "education-tech",
+  "version": "1.0.0",
+  "description": "ELearnAI — Full-stack AI-powered PDF to e-learning platform",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently --names \"BACKEND,FRONTEND\" --prefix-colors \"magenta,cyan\" \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "dev:backend": "npm run dev --prefix Backend",
+    "dev:frontend": "npm run dev --prefix Frontend",
+    "install:all": "npm install && npm install --prefix Backend --legacy-peer-deps && npm install --prefix Frontend",
+    "build": "npm run build --prefix Frontend",
+    "start": "concurrently --names \"BACKEND,FRONTEND\" --prefix-colors \"magenta,cyan\" \"npm run start --prefix Backend\" \"npm run preview --prefix Frontend\""
+  },
+  "devDependencies": {
+    "concurrently": "^10.0.4"
+  }
+}
