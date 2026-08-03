@@ -18,7 +18,9 @@ build/
 
 # ── Uploaded Files ────────────────────────────────────────────────────────────
 backend/uploads/*
+Backend/uploads/*
 !backend/uploads/.gitkeep
+!Backend/uploads/.gitkeep
 
 # ── OS Files ──────────────────────────────────────────────────────────────────
 .DS_Store
