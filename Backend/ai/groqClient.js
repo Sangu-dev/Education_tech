@@ -3,15 +3,28 @@ import logger from '../utils/logger.js';
 
 const apiKey = process.env.GROQ_API_KEY;
 
-// Models - use env var or safe defaults
-const DEFAULT_MODEL = process.env.GROQ_MODEL || 'llama-3.3-70b-versatile';
-const FAST_MODEL = 'llama-3.1-8b-instant';
+// Models - use env var or verified working defaults
+const DEFAULT_MODEL = process.env.GROQ_MODEL || 'groq/compound';
+const FAST_MODEL = 'groq/compound-mini';
 
 // Initialize Groq client ONLY if key exists.
 // This prevents the whole backend from crashing at import-time.
 const groq = apiKey
   ? new Groq({ apiKey })
   : null;
+
+const isModelError = (err) => {
+  if (!err) return false;
+  const msg = (err.message || '').toLowerCase();
+  return (
+    err.status === 404 ||
+    (err.status === 400 && (msg.includes('decommissioned') || msg.includes('model'))) ||
+    msg.includes('model_not_found') ||
+    msg.includes('model_decommissioned') ||
+    msg.includes('does not exist') ||
+    msg.includes('decommissioned')
+  );
+};
 
 /**
  * Send a completion request to Groq
@@ -46,6 +59,28 @@ export const groqComplete = async (messages, options = {}, retries = 3) => {
     logger.info(`Groq completion: model=${model}, tokens=${completion.usage?.total_tokens}`);
     return content;
   } catch (error) {
+    if (isModelError(error)) {
+      const FALLBACK_MODELS = [
+        'groq/compound',
+        'groq/compound-mini',
+        'qwen/qwen3.6-27b',
+        'openai/gpt-oss-120b',
+        'openai/gpt-oss-20b'
+      ];
+      const requestedModel = options.model || DEFAULT_MODEL;
+      for (const fallbackModel of FALLBACK_MODELS) {
+        if (fallbackModel !== requestedModel) {
+          logger.warn(`Model '${requestedModel}' unavailable (${error.message}). Retrying with fallback model: ${fallbackModel}`);
+          try {
+            return await groqComplete(messages, { ...options, model: fallbackModel }, retries);
+          } catch (fbErr) {
+            if (isModelError(fbErr)) continue;
+            throw fbErr;
+          }
+        }
+      }
+    }
+
     // Retry on rate-limit (429) or request-too-large (413) errors
     const isRateLimit = error.status === 429 || error.status === 413 ||
       error.message?.includes('rate_limit') || error.message?.includes('Request too large');
@@ -76,13 +111,27 @@ export const groqStream = async (messages, options = {}) => {
     maxTokens = 4000,
   } = options;
 
-  return groq.chat.completions.create({
-    model,
-    messages,
-    temperature,
-    max_tokens: maxTokens,
-    stream: true,
-  });
+  try {
+    return await groq.chat.completions.create({
+      model,
+      messages,
+      temperature,
+      max_tokens: maxTokens,
+      stream: true,
+    });
+  } catch (error) {
+    if (isModelError(error)) {
+      logger.warn(`Model '${model}' unavailable for streaming. Falling back to groq/compound.`);
+      return groq.chat.completions.create({
+        model: 'groq/compound',
+        messages,
+        temperature,
+        max_tokens: maxTokens,
+        stream: true,
+      });
+    }
+    throw error;
+  }
 };
 
 /**
