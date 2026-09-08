@@ -135,45 +135,97 @@ export const groqStream = async (messages, options = {}) => {
 };
 
 /**
- * Parse JSON from AI response (with cleanup)
+ * Parse JSON from AI response (with auto-repair for truncated output)
  */
 export const parseAIJson = (text) => {
+  if (!text || typeof text !== 'string') {
+    throw new Error('parseAIJson received invalid or empty input');
+  }
+
+  // 1. First attempt: standard cleanup and direct parse
+  let cleaned = text
+    .replace(/```json\s*/gi, '')
+    .replace(/```\s*$/gi, '')
+    .replace(/```\s*/gi, '')
+    .trim();
+
   try {
-    const cleaned = text
-      .replace(/```json\n?/g, '')
-      .replace(/```\n?/g, '')
-      .trim();
     return JSON.parse(cleaned);
-  } catch (error) {
-    // Try extracting a JSON object from the text
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (jsonMatch) {
-      try {
-        return JSON.parse(jsonMatch[0]);
-      } catch (_) {
-        // JSON is truncated — try to salvage complete questions array
-        const questionsMatch = text.match(/"questions"\s*:\s*(\[[\s\S]*?\])\s*[},]?/)
-          || text.match(/"questions"\s*:\s*(\[[\s\S]*)/);
-        if (questionsMatch) {
-          // Extract all complete question objects {…}
-          const rawArr = questionsMatch[1];
-          const completeQuestions = [];
-          const qRegex = /\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}/g;
-          let match;
-          while ((match = qRegex.exec(rawArr)) !== null) {
-            try {
-              completeQuestions.push(JSON.parse(match[0]));
-            } catch (_) { /* skip malformed */ }
+  } catch (_err) {
+    // Continue to repair attempts
+  }
+
+  // 2. Second attempt: auto-repair unclosed strings, delimiters, and truncated arrays/objects
+  try {
+    const firstBrace = cleaned.indexOf('{');
+    if (firstBrace !== -1) {
+      const candidate = cleaned.slice(firstBrace);
+      let inString = false;
+      let isEscaped = false;
+      const stack = [];
+
+      for (let i = 0; i < candidate.length; i++) {
+        const char = candidate[i];
+        if (inString) {
+          if (char === '\\') {
+            isEscaped = !isEscaped;
+          } else if (char === '"' && !isEscaped) {
+            inString = false;
+          } else {
+            isEscaped = false;
           }
-          if (completeQuestions.length > 0) {
-            logger.warn(`parseAIJson: truncated JSON salvaged ${completeQuestions.length} questions`);
-            return { questions: completeQuestions };
+        } else {
+          if (char === '"') {
+            inString = true;
+          } else if (char === '{' || char === '[') {
+            stack.push(char === '{' ? '}' : ']');
+          } else if (char === '}' || char === ']') {
+            if (stack.length > 0 && stack[stack.length - 1] === char) {
+              stack.pop();
+            }
           }
         }
       }
+
+      let repaired = candidate;
+      if (inString) repaired += '"';
+      while (stack.length > 0) {
+        const closing = stack.pop();
+        repaired = repaired.replace(/,\s*$/, '') + closing;
+      }
+
+      const parsed = JSON.parse(repaired);
+      logger.info('parseAIJson: successfully auto-repaired truncated JSON response');
+      return parsed;
     }
-    throw new Error('Failed to parse AI JSON response');
+  } catch (_err) {
+    // Continue to salvage regexes
   }
+
+  // 3. Third attempt: salvage questions array if present
+  try {
+    const questionsMatch = text.match(/"questions"\s*:\s*(\[[\s\S]*?\])\s*[},]?/)
+      || text.match(/"questions"\s*:\s*(\[[\s\S]*)/);
+    if (questionsMatch) {
+      const rawArr = questionsMatch[1];
+      const completeQuestions = [];
+      const qRegex = /\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}/g;
+      let match;
+      while ((match = qRegex.exec(rawArr)) !== null) {
+        try {
+          completeQuestions.push(JSON.parse(match[0]));
+        } catch { /* skip malformed */ }
+      }
+      if (completeQuestions.length > 0) {
+        logger.warn(`parseAIJson: truncated JSON salvaged ${completeQuestions.length} questions`);
+        return { questions: completeQuestions };
+      }
+    }
+  } catch (_err) {
+    // Fall through to final error
+  }
+
+  throw new Error('Failed to parse AI JSON response');
 };
 
 export { DEFAULT_MODEL, FAST_MODEL };

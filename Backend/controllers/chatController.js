@@ -1,7 +1,6 @@
 import {
   sendMessage,
   getChatHistory,
-  getOrCreateChat,
   clearChat,
   getUserChats,
 } from '../services/chatService.js';
@@ -25,6 +24,11 @@ export const chat = asyncHandler(async (req, res) => {
     res.setHeader('Connection', 'keep-alive');
     res.flushHeaders();
 
+    let clientDisconnected = false;
+    req.on('close', () => {
+      clientDisconnected = true;
+    });
+
     const { stream: groqStream, chat } = await sendMessage(
       req.user._id,
       courseId,
@@ -35,6 +39,7 @@ export const chat = asyncHandler(async (req, res) => {
     let fullContent = '';
 
     for await (const chunk of groqStream) {
+      if (clientDisconnected) break;
       const content = chunk.choices[0]?.delta?.content || '';
       if (content) {
         fullContent += content;
@@ -42,13 +47,15 @@ export const chat = asyncHandler(async (req, res) => {
       }
     }
 
-    // Save final message
-    chat.messages.push({ role: 'assistant', content: fullContent });
-    chat.totalMessages = chat.messages.length;
-    await chat.save();
+    if (!clientDisconnected) {
+      // Save final message
+      chat.messages.push({ role: 'assistant', content: fullContent });
+      chat.totalMessages = chat.messages.length;
+      await chat.save();
 
-    res.write('data: [DONE]\n\n');
-    res.end();
+      res.write('data: [DONE]\n\n');
+      res.end();
+    }
   } else {
     const result = await sendMessage(req.user._id, courseId, message, false);
     sendSuccess(res, result, 'Message sent');

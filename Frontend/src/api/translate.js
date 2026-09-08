@@ -22,7 +22,7 @@ export const translateAPI = {
    * @param {string} lang - Language code: 'hi' | 'kn' | 'te' | 'ta' | 'ml'
    */
   getTTSUrl: (text, lang) => {
-    const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+    const baseURL = import.meta.env.VITE_API_URL || '/api';
     const token = localStorage.getItem('accessToken');
     return `${baseURL}/translate/tts?text=${encodeURIComponent(text.slice(0, 200))}&lang=${lang}&token=${token}`;
   },

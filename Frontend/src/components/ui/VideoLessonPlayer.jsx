@@ -16,7 +16,7 @@ const LANGUAGES = [
   { code: 'ml',  label: 'മ',   name: 'Malayalam',   ttsLang: 'ml',  flag: '🇮🇳' },
 ];
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+const API_BASE = import.meta.env.VITE_API_URL || '/api';
 
 // ─── Helper: fetch Google TTS audio via backend proxy ────────────────────────
 async function fetchTTSAudio(text, lang) {

@@ -3,6 +3,9 @@ import Chapter from '../models/Chapter.js';
 import Topic from '../models/Topic.js';
 import Lesson from '../models/Lesson.js';
 import Progress from '../models/Progress.js';
+import Quiz from '../models/Quiz.js';
+import QuizAttempt from '../models/QuizAttempt.js';
+import Chat from '../models/Chat.js';
 import { createError } from '../utils/responseHelper.js';
 
 /**
@@ -105,6 +108,9 @@ export const deleteCourse = async (courseId, userId) => {
     Topic.deleteMany({ chapterId: { $in: chapterIds } }),
     Chapter.deleteMany({ courseId }),
     Progress.deleteMany({ courseId }),
+    Quiz.deleteMany({ courseId }),
+    QuizAttempt.deleteMany({ courseId }),
+    Chat.deleteMany({ courseId }),
     Course.findByIdAndDelete(courseId),
   ]);
 

@@ -57,7 +57,9 @@ export const AuthProvider = ({ children }) => {
   const logout = useCallback(async () => {
     try {
       await authAPI.logout();
-    } catch {}
+    } catch {
+      // Ignore network errors during local logout cleanup
+    }
     localStorage.removeItem('accessToken');
     localStorage.removeItem('refreshToken');
     setUser(null);

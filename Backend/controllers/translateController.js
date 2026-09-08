@@ -96,16 +96,35 @@ export const proxyTTS = asyncHandler(async (req, res) => {
     },
   };
 
-  https.get(url, options, (gttsRes) => {
+  const gttsReq = https.get(url, options, (gttsRes) => {
     if (gttsRes.statusCode !== 200) {
-      res.status(502).json({ success: false, message: 'TTS service unavailable' });
+      if (!res.headersSent) {
+        res.status(502).json({ success: false, message: 'TTS service unavailable' });
+      }
       return;
     }
     res.setHeader('Content-Type', 'audio/mpeg');
     res.setHeader('Cache-Control', 'public, max-age=86400'); // cache 24h
     gttsRes.pipe(res);
-  }).on('error', (err) => {
-    res.status(502).json({ success: false, message: 'TTS proxy error: ' + err.message });
+  });
+
+  gttsReq.setTimeout(10000, () => {
+    gttsReq.destroy();
+    if (!res.headersSent) {
+      res.status(504).json({ success: false, message: 'TTS request timed out' });
+    }
+  });
+
+  gttsReq.on('error', (err) => {
+    if (!res.headersSent) {
+      res.status(502).json({ success: false, message: 'TTS proxy error: ' + err.message });
+    }
+  });
+
+  req.on('close', () => {
+    if (!gttsReq.destroyed) {
+      gttsReq.destroy();
+    }
   });
 });
 

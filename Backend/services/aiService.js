@@ -13,7 +13,7 @@ export const generateCourseFromPDF = async (pdfText, options = {}) => {
 
     const response = await groqComplete(messages, {
       temperature: 0.4,
-      maxTokens: 4000,
+      maxTokens: 8000,
       jsonMode: true,
     });
 

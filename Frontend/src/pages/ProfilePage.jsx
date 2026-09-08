@@ -62,7 +62,9 @@ export default function ProfilePage() {
   };
 
   const displayUser = profile || user;
-  const avatarUrl = displayUser?.avatar ? `http://localhost:5000${displayUser.avatar}` : null;
+  const avatarUrl = displayUser?.avatar
+    ? (displayUser.avatar.startsWith('http') ? displayUser.avatar : displayUser.avatar)
+    : null;
   const streak = displayUser?.streak?.current || 0;
   const bestStreak = displayUser?.streak?.best || 0;
   const learningTime = displayUser?.totalLearningTime || 0;

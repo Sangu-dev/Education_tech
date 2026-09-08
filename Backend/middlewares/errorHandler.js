@@ -9,6 +9,10 @@ export const notFound = (req, res, next) => {
 
 // Global Error Handler
 export const errorHandler = (err, req, res, next) => {
+  if (res.headersSent) {
+    return next(err);
+  }
+
   let statusCode = err.statusCode || err.status || 500;
   let message = err.message || 'Internal Server Error';
 

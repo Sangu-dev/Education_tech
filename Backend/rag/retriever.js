@@ -67,8 +67,22 @@ export const retrieveRelevantContext = async (query, collectionName, topK = 5) =
     }
   }
 
-  // Fallback: Term overlap matching on in-memory chunks
-  const memChunks = getChunksFromMemory(key);
+  // Fallback: Term overlap matching on in-memory chunks (reconstructed from DB if server restarted)
+  let memChunks = getChunksFromMemory(key);
+  if (!memChunks || memChunks.length === 0) {
+    try {
+      const { default: Lesson } = await import('../models/Lesson.js');
+      const lessons = await Lesson.find({ courseId: key }).select('title content summary').lean();
+      if (lessons && lessons.length > 0) {
+        const reconstructed = lessons.map(l => `${l.title}\n${l.summary || ''}\n${l.content || ''}`);
+        storeChunksInMemory(key, reconstructed);
+        memChunks = getChunksFromMemory(key);
+      }
+    } catch (dbErr) {
+      logger.warn(`Failed to reconstruct chunks from MongoDB: ${dbErr.message}`);
+    }
+  }
+
   if (!memChunks || memChunks.length === 0) return [];
 
   const queryTerms = query.toLowerCase().split(/\W+/).filter(t => t.length > 2);

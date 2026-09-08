@@ -2,6 +2,8 @@ import User from '../models/User.js';
 import Course from '../models/Course.js';
 import QuizAttempt from '../models/QuizAttempt.js';
 import Progress from '../models/Progress.js';
+import Chat from '../models/Chat.js';
+import { deleteCourse } from '../services/courseService.js';
 import { asyncHandler, sendSuccess, createError } from '../utils/responseHelper.js';
 import fs from 'fs';
 import path from 'path';
@@ -63,12 +65,16 @@ export const uploadAvatarCtrl = asyncHandler(async (req, res) => {
 
   const avatarUrl = `/uploads/avatars/${req.file.filename}`;
 
-  // Delete old avatar
+  // Safely delete old avatar
   const oldUser = await User.findById(req.user._id);
-  if (oldUser.avatar) {
-    const oldPath = path.join(process.cwd(), oldUser.avatar);
-    if (fs.existsSync(oldPath)) {
-      fs.unlinkSync(oldPath);
+  if (oldUser && oldUser.avatar) {
+    try {
+      const oldPath = path.join(process.cwd(), oldUser.avatar);
+      if (fs.existsSync(oldPath)) {
+        fs.unlinkSync(oldPath);
+      }
+    } catch {
+      // Ignore failure to remove old avatar
     }
   }
 
@@ -105,13 +111,37 @@ export const changePassword = asyncHandler(async (req, res) => {
 export const deleteAccount = asyncHandler(async (req, res) => {
   const userId = req.user._id;
 
-  // Cascade delete user data
+  // 1. Cascade delete all user courses and all associated child resources
+  const userCourses = await Course.find({ userId }).select('_id');
+  for (const course of userCourses) {
+    try {
+      await deleteCourse(course._id, userId);
+    } catch {
+      // Continue cascade even if a single course cleanup has issues
+    }
+  }
+
+  // 2. Cascade delete remaining user data
   await Promise.all([
-    Course.deleteMany({ userId }),
     Progress.deleteMany({ userId }),
     QuizAttempt.deleteMany({ userId }),
-    User.findByIdAndDelete(userId),
+    Chat.deleteMany({ userId }),
   ]);
+
+  // 3. Delete avatar file if exists
+  const user = await User.findById(userId);
+  if (user && user.avatar) {
+    try {
+      const avatarPath = path.join(process.cwd(), user.avatar);
+      if (fs.existsSync(avatarPath)) {
+        fs.unlinkSync(avatarPath);
+      }
+    } catch {
+      // Ignore avatar cleanup failure
+    }
+  }
+
+  await User.findByIdAndDelete(userId);
 
   sendSuccess(res, null, 'Account deleted successfully');
 });

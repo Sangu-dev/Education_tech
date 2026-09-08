@@ -38,7 +38,7 @@ export default function Navbar({ onMenuClick }) {
   }, [location.pathname]);
 
   const avatarUrl = user?.avatar
-    ? `http://localhost:5000${user.avatar}`
+    ? (user.avatar.startsWith('http') ? user.avatar : user.avatar)
     : null;
 
   return (

@@ -168,10 +168,11 @@ const checkAnswer = (type, userAnswer, correctAnswer, options = []) => {
     case 'mcq':
     case 'true_false':
       return normUser === normCorrect;
-    case 'short_answer':
+    case 'short_answer': {
       // For short answer, check if key words are present
       const keywords = normCorrect.split(/\s+/);
       return keywords.some(kw => kw.length > 3 && normUser.includes(kw));
+    }
     default:
       return normUser === normCorrect;
   }

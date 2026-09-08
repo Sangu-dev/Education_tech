@@ -62,11 +62,27 @@ const imageFilter = (req, file, cb) => {
   }
 };
 
+// Helper to parse file size with units (e.g., '50MB', '10MB', 52428800)
+export const parseFileSize = (sizeStr, defaultBytes = 50 * 1024 * 1024) => {
+  if (!sizeStr) return defaultBytes;
+  if (typeof sizeStr === 'number') return sizeStr;
+  const match = sizeStr.toString().trim().match(/^(\d+(?:\.\d+)?)\s*(b|kb|mb|gb)?$/i);
+  if (!match) return defaultBytes;
+  const num = parseFloat(match[1]);
+  const unit = (match[2] || 'b').toLowerCase();
+  switch (unit) {
+    case 'gb': return Math.round(num * 1024 * 1024 * 1024);
+    case 'mb': return Math.round(num * 1024 * 1024);
+    case 'kb': return Math.round(num * 1024);
+    default: return Math.round(num);
+  }
+};
+
 // Upload PDF multer instance
 export const uploadPDF = multer({
   storage: pdfStorage,
   limits: {
-    fileSize: parseInt(process.env.MAX_FILE_SIZE) || 50 * 1024 * 1024, // 50MB default
+    fileSize: parseFileSize(process.env.MAX_FILE_SIZE, 50 * 1024 * 1024), // 50MB default
   },
   fileFilter: pdfFilter,
 }).single('pdf');

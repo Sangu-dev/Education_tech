@@ -85,11 +85,15 @@ const processCourseAsync = async (courseId, filePath, originalname) => {
 const saveCourseStructure = async (courseId, courseData) => {
   let totalLessons = 0;
 
+  const validDifficulties = ['beginner', 'intermediate', 'advanced'];
+  const rawDiff = (courseData.difficulty || '').toLowerCase().trim();
+  const difficulty = validDifficulties.includes(rawDiff) ? rawDiff : 'beginner';
+
   // Update course metadata
   await Course.findByIdAndUpdate(courseId, {
     title: courseData.title,
     description: courseData.description,
-    difficulty: courseData.difficulty || 'Beginner',
+    difficulty,
     estimatedTime: courseData.estimatedTime,
     learningObjectives: courseData.learningObjectives || [],
     prerequisites: courseData.prerequisites || [],

@@ -3,13 +3,17 @@
  */
 
 export const buildCourseGenerationPrompt = (pdfText, options = {}) => {
-  const { numChapters = 4, difficulty = 'auto' } = options;
+  const { numChapters = 3, difficulty = 'auto' } = options;
 
   // Trim text to avoid token limits (6000 chars ≈ ~1500 tokens, leaves room for output)
   const maxTextLength = 6000;
   const trimmedText = pdfText.length > maxTextLength
     ? pdfText.substring(0, maxTextLength) + '\n\n[Content truncated for length...]'
     : pdfText;
+
+  const validDiff = ['beginner', 'intermediate', 'advanced'].includes(String(difficulty).toLowerCase())
+    ? difficulty.toLowerCase()
+    : 'beginner';
 
   return [
     {
@@ -29,10 +33,10 @@ ${trimmedText}
 Generate a JSON course structure with EXACTLY this format:
 {
   "title": "Engaging course title",
-  "description": "Comprehensive description (2-3 paragraphs)",
-  "difficulty": "${difficulty === 'auto' ? 'Beginner|Intermediate|Advanced' : difficulty}",
+  "description": "Comprehensive course description (1-2 paragraphs)",
+  "difficulty": "${difficulty === 'auto' ? 'beginner' : validDiff}",
   "estimatedTime": "X hours Y minutes",
-  "learningObjectives": ["objective 1", "objective 2", "objective 3", "objective 4", "objective 5"],
+  "learningObjectives": ["objective 1", "objective 2", "objective 3"],
   "prerequisites": ["prerequisite 1", "prerequisite 2"],
   "tags": ["tag1", "tag2", "tag3"],
   "chapters": [
@@ -49,14 +53,14 @@ Generate a JSON course structure with EXACTLY this format:
               "title": "Lesson title",
               "order": 1,
               "estimatedTime": 8,
-              "content": "Comprehensive lesson content with detailed explanation (minimum 300 words). Include context, theory, and practical application.",
+              "content": "Educational lesson content with explanation, theory, and practical application (150-250 words).",
               "summary": "2-3 sentence summary of key points",
               "keyTakeaways": ["takeaway 1", "takeaway 2", "takeaway 3"],
               "importantNotes": ["important note 1", "important note 2"],
               "examples": [
                 {
                   "title": "Example title",
-                  "description": "Detailed, concrete example with explanation"
+                  "description": "Brief, concrete example with explanation"
                 }
               ]
             }
@@ -68,10 +72,11 @@ Generate a JSON course structure with EXACTLY this format:
 }
 
 Requirements:
-- Generate exactly ${numChapters} chapters
+- Generate ${numChapters} chapters
 - Each chapter must have 2 topics
-- Each topic must have 2 lessons
-- Lesson content must be clear and educational (100-150 words each)
+- Each topic must have 1-2 lessons
+- Difficulty must be strictly one of: "beginner", "intermediate", "advanced" (lowercase only)
+- Lesson content must be clear and educational (150-250 words each)
 - Keep key takeaways concise (1 sentence each)
 - Examples should be brief and practical
 - Do NOT include any text outside the JSON object`
