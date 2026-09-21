@@ -22,8 +22,8 @@ npm run dev
 if %ERRORLEVEL% NEQ 0 (
     echo.
     echo [WARNING] 'npm run dev' failed. Attempting to start in separate windows...
-    start "ELearnAI Backend" cmd /k "cd /d "%~dp0Backend" && npm run dev"
-    start "ELearnAI Frontend" cmd /k "cd /d "%~dp0Frontend" && npm run dev"
+    start "ELearnAI Backend" cmd /k "cd /d %~dp0Backend && npm run dev"
+    start "ELearnAI Frontend" cmd /k "cd /d %~dp0Frontend && npm run dev"
 )
 
 pause
