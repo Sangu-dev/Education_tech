@@ -4,31 +4,48 @@ import { fileURLToPath } from 'url';
 import { spawn } from 'child_process';
 import logger from '../utils/logger.js';
 import { generateSceneNarrationAudio, probeAudioDuration } from './ttsService.js';
+import { getFfmpegPath } from './binaryResolver.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const ROOT_DIR = path.resolve(__dirname, '..');
 const VIDEOS_DIR = path.join(ROOT_DIR, 'uploads', 'videos');
-const FFMPEG_PATH = path.join(ROOT_DIR, 'bin', 'ffmpeg.exe');
+const FFMPEG_PATH = getFfmpegPath();
+const ANIMATION_ENGINE_SCRIPT = path.join(__dirname, 'animationEngine.py');
 const PYTHON_SCRIPT = path.join(__dirname, 'manimRenderer.py');
 const CARD_GENERATOR_SCRIPT = path.join(__dirname, 'cardGenerator.py');
 
 // Ensure videos directory exists
 fs.mkdirSync(VIDEOS_DIR, { recursive: true });
 
+// External image pre-fetch removed: all visuals are now rendered programmatically with code (no external downloads)
+
+
 /**
- * Execute a command and return promise
+ * Execute a command and return promise with timeout kill protection
  */
-function runProcess(cmd, args, options = {}) {
+function runProcess(cmd, args, options = {}, timeoutMs = 90000) {
   return new Promise((resolve, reject) => {
+    let finished = false;
     const proc = spawn(cmd, args, { ...options, windowsHide: true });
     let stdout = '';
     let stderr = '';
+
+    const timer = timeoutMs > 0 ? setTimeout(() => {
+      if (!finished) {
+        finished = true;
+        try { proc.kill('SIGKILL'); } catch (_e) { /* ignore */ }
+        reject(new Error(`Process ${cmd} timed out after ${timeoutMs}ms`));
+      }
+    }, timeoutMs) : null;
 
     proc.stdout?.on('data', (d) => { stdout += d.toString(); });
     proc.stderr?.on('data', (d) => { stderr += d.toString(); });
 
     proc.on('close', (code) => {
+      if (finished) return;
+      finished = true;
+      if (timer) clearTimeout(timer);
       if (code === 0) {
         resolve({ stdout, stderr });
       } else {
@@ -36,14 +53,82 @@ function runProcess(cmd, args, options = {}) {
       }
     });
 
-    proc.on('error', reject);
+    proc.on('error', (err) => {
+      if (finished) return;
+      finished = true;
+      if (timer) clearTimeout(timer);
+      reject(err);
+    });
   });
+}
+
+/**
+ * Render a single animated scene via MoviePy + Pillow Animation Engine
+ * Generates true 24fps visual animation matching exact audio duration
+ */
+async function renderAnimatedClip(scene, outputPath, duration, audioPath = null) {
+  const tempJsonPath = path.join(VIDEOS_DIR, `scene_${Date.now()}_${Math.random().toString(36).slice(2, 6)}.json`);
+  const scenePayload = {
+    ...scene,
+    duration: Math.max(2.5, Number(duration || scene.duration || scene.duration_estimate || 6)),
+  };
+
+  try {
+    fs.writeFileSync(tempJsonPath, JSON.stringify(scenePayload, null, 2), 'utf-8');
+
+    const args = [
+      ANIMATION_ENGINE_SCRIPT,
+      '--scene-json', tempJsonPath,
+      '--output', outputPath,
+      '--duration', String(scenePayload.duration),
+    ];
+
+    if (audioPath && fs.existsSync(audioPath)) {
+      args.push('--audio', audioPath);
+    }
+
+    logger.info(`Running animation engine for scene ${scene.scene_id} (${scene.animation_type || 'text_typewriter'}, ${scenePayload.duration.toFixed(1)}s)`);
+    await runProcess('python', args, {}, 120000);
+    return fs.existsSync(outputPath) && fs.statSync(outputPath).size > 1000;
+  } catch (error) {
+    logger.warn(`AnimationEngine render failed for scene ${scene.scene_id}: ${error.message}`);
+    return false;
+  } finally {
+    try {
+      if (fs.existsSync(tempJsonPath)) fs.unlinkSync(tempJsonPath);
+    } catch (_err) {
+      /* ignore temp file cleanup error */
+    }
+  }
+}
+
+let isManimEnvironmentReady = null;
+
+/**
+ * Check once whether Manim and NumPy are installed in the host Python environment
+ */
+async function checkManimEnvironment() {
+  if (isManimEnvironmentReady !== null) return isManimEnvironmentReady;
+  try {
+    await runProcess('python', ['-c', 'import manim, numpy'], {}, 5000);
+    isManimEnvironmentReady = true;
+    logger.info('Manim & NumPy runtime verified. Dynamic programmatic animations enabled.');
+  } catch (_err) {
+    isManimEnvironmentReady = false;
+    logger.info('Manim/NumPy not found in Python environment. Using MoviePy+Pillow animation engine.');
+  }
+  return isManimEnvironmentReady;
 }
 
 /**
  * Render a single animated scene via Manim Python script
  */
 async function renderManimClip(scene, outputPath, duration) {
+  const isReady = await checkManimEnvironment();
+  if (!isReady) {
+    return false;
+  }
+
   const tempJsonPath = path.join(VIDEOS_DIR, `scene_${Date.now()}_${Math.random().toString(36).slice(2, 6)}.json`);
   const scenePayload = {
     ...scene,
@@ -57,17 +142,19 @@ async function renderManimClip(scene, outputPath, duration) {
     await runProcess('python', [PYTHON_SCRIPT, tempJsonPath, outputPath]);
     return true;
   } catch (error) {
-    logger.warn(`Manim clip render failed for scene ${scene.scene_id}: ${error.message}. Using high-quality video fallback.`);
+    logger.warn(`Manim clip render failed for scene ${scene.scene_id}: ${error.message}.`);
     return false;
   } finally {
     try {
       if (fs.existsSync(tempJsonPath)) fs.unlinkSync(tempJsonPath);
-    } catch {}
+    } catch (_err) {
+      /* ignore temp file cleanup error */
+    }
   }
 }
 
 /**
- * High-quality fallback PNG/FFmpeg clip renderer if Manim encounters any runtime constraint
+ * High-quality fallback PNG/FFmpeg clip renderer if other engines encounter constraints
  */
 async function renderFallbackClip(scene, outputPath, durationSec) {
   const tempJson = path.join(VIDEOS_DIR, `temp_card_${Date.now()}_${Math.random().toString(36).slice(2, 6)}.json`);
@@ -93,16 +180,25 @@ async function renderFallbackClip(scene, outputPath, durationSec) {
     await runProcess(FFMPEG_PATH, args);
     return true;
   } finally {
-    try { if (fs.existsSync(tempJson)) fs.unlinkSync(tempJson); } catch {}
-    try { if (fs.existsSync(tempPng)) fs.unlinkSync(tempPng); } catch {}
+    try { if (fs.existsSync(tempJson)) fs.unlinkSync(tempJson); } catch (_err) { /* ignore */ }
+    try { if (fs.existsSync(tempPng)) fs.unlinkSync(tempPng); } catch (_err) { /* ignore */ }
   }
 }
 
 /**
  * Synchronize video clip with audio file using FFmpeg
+/**
+ * Synchronize video clip with audio file using FFmpeg
  * Pads/freezes last video frame if audio is longer, ensuring 100% sync
  */
 async function muxAudioAndVideo(rawVideoPath, audioPath, outputPath, targetDuration) {
+  if (!fs.existsSync(rawVideoPath) || fs.statSync(rawVideoPath).size < 1000) {
+    throw new Error(`Invalid or missing raw video input: ${rawVideoPath}`);
+  }
+  if (!fs.existsSync(audioPath) || fs.statSync(audioPath).size < 100) {
+    throw new Error(`Invalid or missing audio input: ${audioPath}`);
+  }
+
   const actualAudioDuration = await probeAudioDuration(audioPath);
   const duration = Math.max(targetDuration, actualAudioDuration);
 
@@ -124,15 +220,25 @@ async function muxAudioAndVideo(rawVideoPath, audioPath, outputPath, targetDurat
   ];
 
   await runProcess(FFMPEG_PATH, args);
+
+  if (!fs.existsSync(outputPath) || fs.statSync(outputPath).size < 1000) {
+    throw new Error(`FFmpeg muxing failed to produce valid output at: ${outputPath}`);
+  }
+
   return { duration, outputPath };
 }
 
 /**
  * Concatenate multiple synchronized MP4 clips into final video
  */
-async function concatenateClips(clipPaths, finalVideoPath) {
-  const listFile = path.join(VIDEOS_DIR, `concat_${Date.now()}.txt`);
-  const lines = clipPaths.map((p) => `file '${p.replace(/\\/g, '/')}'`).join('\n');
+async function concatenateClips(clipPaths, finalVideoPath, runId = Date.now().toString()) {
+  const validClips = clipPaths.filter((p) => fs.existsSync(p) && fs.statSync(p).size > 1000);
+  if (validClips.length === 0) {
+    throw new Error('No valid MP4 clips available to concatenate');
+  }
+
+  const listFile = path.join(VIDEOS_DIR, `concat_${runId}.txt`);
+  const lines = validClips.map((p) => `file '${p.replace(/\\/g, '/')}'`).join('\n');
   fs.writeFileSync(listFile, lines, 'utf-8');
 
   try {
@@ -153,7 +259,9 @@ async function concatenateClips(clipPaths, finalVideoPath) {
   } finally {
     try {
       if (fs.existsSync(listFile)) fs.unlinkSync(listFile);
-    } catch {}
+    } catch (_err) {
+      /* ignore list file cleanup error */
+    }
   }
 }
 
@@ -171,12 +279,20 @@ export const renderCompleteLessonVideo = async (lesson, scenes, options = {}) =>
   } = options;
 
   const lessonId = lesson._id?.toString() || 'lesson_' + Date.now();
+  const runId = Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 6);
   const finalFilename = `video_${lessonId}_${lang}.mp4`;
   const finalVideoPath = path.join(VIDEOS_DIR, finalFilename);
   const relativeVideoUrl = `/uploads/videos/${finalFilename}`;
 
-  logger.info(`Starting video rendering for lesson ${lessonId} with ${scenes.length} scenes in ${lang}`);
+  logger.info(`Starting video rendering for lesson ${lessonId} (runId: ${runId}) with ${scenes.length} scenes in ${lang} (style: ${videoStyle})`);
   onProgress('Starting animation & audio pipeline', 10);
+
+  // Log the final JSON input right before it hits the video renderer
+  console.log('\n======================================================');
+  console.log('=== FINAL VIDEO RENDERER JSON INPUT (TOPIC VERIFIED) ===');
+  console.log('======================================================');
+  console.log(JSON.stringify(scenes, null, 2));
+  console.log('======================================================\n');
 
   const renderedClips = [];
   const updatedScenes = [];
@@ -184,51 +300,120 @@ export const renderCompleteLessonVideo = async (lesson, scenes, options = {}) =>
   for (let i = 0; i < scenes.length; i++) {
     const scene = scenes[i];
     const sceneNum = i + 1;
-    const progressPct = 10 + Math.round((sceneNum / scenes.length) * 75);
+    const progressPct = 15 + Math.round((sceneNum / scenes.length) * 75);
 
-    onProgress(`Rendering Scene ${sceneNum} of ${scenes.length}: "${scene.title}"`, progressPct);
+    onProgress(`Rendering Slide ${sceneNum} of ${scenes.length}: "${scene.title}"`, progressPct);
 
-    // 1. Generate / retrieve synchronized TTS audio
-    const audioResult = await generateSceneNarrationAudio(scene.narration, {
-      lessonId,
-      sceneId: scene.scene_id || sceneNum,
-      lang,
-    });
-
-    const sceneDuration = Math.max(3.5, audioResult.duration);
-
-    // 2. Render visual clip (Manim with fallback)
-    const rawClipPath = path.join(VIDEOS_DIR, `raw_${lessonId}_${scene.scene_id}.mp4`);
-    const muxedClipPath = path.join(VIDEOS_DIR, `clip_${lessonId}_${scene.scene_id}_${lang}.mp4`);
-
-    let visualSuccess = await renderManimClip(scene, rawClipPath, sceneDuration);
-    if (!visualSuccess || !fs.existsSync(rawClipPath)) {
-      await renderFallbackClip(scene, rawClipPath, sceneDuration);
-    }
-
-    // 3. Mux audio + video with perfect synchronization
-    await muxAudioAndVideo(rawClipPath, audioResult.filePath, muxedClipPath, sceneDuration);
-
-    renderedClips.push(muxedClipPath);
-
-    // Update scene metadata
-    updatedScenes.push({
-      ...scene,
-      duration: sceneDuration,
-      audioUrl: audioResult.audioUrl,
-      videoClipUrl: `/uploads/videos/${path.basename(muxedClipPath)}`,
-    });
-
-    // Cleanup raw clip
     try {
-      if (fs.existsSync(rawClipPath)) fs.unlinkSync(rawClipPath);
-    } catch {}
+      // 1. Generate / retrieve synchronized TTS audio
+      const audioResult = await generateSceneNarrationAudio(scene.narration, {
+        lessonId,
+        sceneId: scene.scene_id || sceneNum,
+        lang,
+      });
+
+      // 2. Measure exact audio duration and render visual animation
+      const sceneDuration = Math.max(3.5, audioResult.duration);
+      const rawClipPath = path.join(VIDEOS_DIR, `raw_${lessonId}_${runId}_${scene.scene_id || sceneNum}.mp4`);
+      const muxedClipPath = path.join(VIDEOS_DIR, `clip_${lessonId}_${runId}_${scene.scene_id || sceneNum}_${lang}.mp4`);
+
+      let visualSuccess = await renderAnimatedClip(scene, rawClipPath, sceneDuration);
+      if (!visualSuccess || !fs.existsSync(rawClipPath)) {
+        visualSuccess = await renderManimClip(scene, rawClipPath, sceneDuration);
+      }
+      if (!visualSuccess || !fs.existsSync(rawClipPath)) {
+        await renderFallbackClip(scene, rawClipPath, sceneDuration);
+      }
+
+      // 3. Mux audio + video with perfect synchronization
+      await muxAudioAndVideo(rawClipPath, audioResult.filePath, muxedClipPath, sceneDuration);
+
+      renderedClips.push(muxedClipPath);
+
+      // Save a copy to canonical clip path for standalone previews / reRenderSingleScene
+      const canonicalClipPath = path.join(VIDEOS_DIR, `clip_${lessonId}_${scene.scene_id || sceneNum}_${lang}.mp4`);
+      try {
+        fs.copyFileSync(muxedClipPath, canonicalClipPath);
+      } catch (_e) {
+        /* ignore copy error */
+      }
+
+      // Update scene metadata
+      updatedScenes.push({
+        ...scene,
+        duration: sceneDuration,
+        audioUrl: audioResult.audioUrl,
+        videoClipUrl: `/uploads/videos/${path.basename(canonicalClipPath)}`,
+      });
+
+      // Cleanup raw clip
+      try {
+        if (fs.existsSync(rawClipPath)) fs.unlinkSync(rawClipPath);
+      } catch (_err) {
+        /* ignore temp clip cleanup error */
+      }
+    } catch (sceneErr) {
+      logger.error(`Error rendering scene #${sceneNum} ("${scene.title}"): ${sceneErr.message}. Running emergency fallback.`);
+      try {
+        const fbAudio = await generateSceneNarrationAudio(scene.title || 'Lesson Overview', {
+          lessonId,
+          sceneId: scene.scene_id || sceneNum,
+          lang,
+        });
+        const sceneDuration = Math.max(3.5, fbAudio.duration);
+        const rawClipPath = path.join(VIDEOS_DIR, `raw_fb_${lessonId}_${runId}_${sceneNum}.mp4`);
+        const muxedClipPath = path.join(VIDEOS_DIR, `clip_${lessonId}_${runId}_${scene.scene_id || sceneNum}_${lang}.mp4`);
+
+        let fbSuccess = await renderAnimatedClip(scene, rawClipPath, sceneDuration);
+        if (!fbSuccess || !fs.existsSync(rawClipPath)) {
+          await renderFallbackClip(scene, rawClipPath, sceneDuration);
+        }
+        await muxAudioAndVideo(rawClipPath, fbAudio.filePath, muxedClipPath, sceneDuration);
+
+        renderedClips.push(muxedClipPath);
+
+        const canonicalClipPath = path.join(VIDEOS_DIR, `clip_${lessonId}_${scene.scene_id || sceneNum}_${lang}.mp4`);
+        try {
+          fs.copyFileSync(muxedClipPath, canonicalClipPath);
+        } catch (_e) {
+          /* ignore */
+        }
+
+        updatedScenes.push({
+          ...scene,
+          duration: sceneDuration,
+          audioUrl: fbAudio.audioUrl,
+          videoClipUrl: `/uploads/videos/${path.basename(canonicalClipPath)}`,
+        });
+
+        try {
+          if (fs.existsSync(rawClipPath)) fs.unlinkSync(rawClipPath);
+        } catch (_err) {
+          /* ignore */
+        }
+      } catch (fatalSceneErr) {
+        logger.error(`Emergency fallback failed for scene #${sceneNum}: ${fatalSceneErr.message}`);
+      }
+    }
+  }
+
+  if (renderedClips.length === 0) {
+    throw new Error('No video scenes could be rendered for this lesson.');
   }
 
   // 4. Concatenate all scene clips into final MP4 video
   onProgress('Assembling final MP4 video', 92);
   logger.info(`Concatenating ${renderedClips.length} scene clips into final video: ${finalVideoPath}`);
-  await concatenateClips(renderedClips, finalVideoPath);
+  await concatenateClips(renderedClips, finalVideoPath, runId);
+
+  // Clean up temporary runId clips
+  for (const clip of renderedClips) {
+    try {
+      if (fs.existsSync(clip)) fs.unlinkSync(clip);
+    } catch (_err) {
+      /* ignore temp clip cleanup error */
+    }
+  }
 
   onProgress('Video finalized and ready', 100);
   logger.info(`✅ Video successfully generated: ${relativeVideoUrl}`);
@@ -274,7 +459,10 @@ export const reRenderSingleScene = async (lesson, targetSceneId, newSceneData, o
   const rawClipPath = path.join(VIDEOS_DIR, `raw_${lessonId}_${targetSceneId}.mp4`);
   const muxedClipPath = path.join(VIDEOS_DIR, `clip_${lessonId}_${targetSceneId}_${lang}.mp4`);
 
-  let visualSuccess = await renderManimClip(scene, rawClipPath, sceneDuration);
+  let visualSuccess = await renderAnimatedClip(scene, rawClipPath, sceneDuration);
+  if (!visualSuccess || !fs.existsSync(rawClipPath)) {
+    visualSuccess = await renderManimClip(scene, rawClipPath, sceneDuration);
+  }
   if (!visualSuccess || !fs.existsSync(rawClipPath)) {
     await renderFallbackClip(scene, rawClipPath, sceneDuration);
   }
@@ -288,7 +476,9 @@ export const reRenderSingleScene = async (lesson, targetSceneId, newSceneData, o
 
   try {
     if (fs.existsSync(rawClipPath)) fs.unlinkSync(rawClipPath);
-  } catch {}
+  } catch (_err) {
+    /* ignore temp clip cleanup error */
+  }
 
   // 4. Collect all clips and re-concatenate
   const allClips = existingScenes.map((s) => {
@@ -302,15 +492,23 @@ export const reRenderSingleScene = async (lesson, targetSceneId, newSceneData, o
       const s = existingScenes[i];
       const aRes = await generateSceneNarrationAudio(s.narration, { lessonId, sceneId: s.scene_id, lang });
       const rClip = path.join(VIDEOS_DIR, `raw_${lessonId}_${s.scene_id}.mp4`);
-      await renderFallbackClip(s, rClip, aRes.duration);
+      let rSuccess = await renderAnimatedClip(s, rClip, aRes.duration);
+      if (!rSuccess || !fs.existsSync(rClip)) {
+        await renderFallbackClip(s, rClip, aRes.duration);
+      }
       await muxAudioAndVideo(rClip, aRes.filePath, clipP, aRes.duration);
-      try { if (fs.existsSync(rClip)) fs.unlinkSync(rClip); } catch {}
+      try {
+        if (fs.existsSync(rClip)) fs.unlinkSync(rClip);
+      } catch (_err) {
+        /* ignore */
+      }
     }
   }
 
   const finalFilename = `video_${lessonId}_${lang}.mp4`;
   const finalVideoPath = path.join(VIDEOS_DIR, finalFilename);
-  await concatenateClips(allClips, finalVideoPath);
+  const reRenderRunId = 'rerender_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 6);
+  await concatenateClips(allClips, finalVideoPath, reRenderRunId);
 
   return {
     videoUrl: `/uploads/videos/${finalFilename}`,
