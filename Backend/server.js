@@ -9,11 +9,16 @@ import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
 
+import { validateEnv } from './config/envValidator.js';
 import { connectDB } from './config/db.js';
 import { corsOptions } from './config/corsConfig.js';
 import { apiLimiter } from './config/rateLimiter.js';
 import { errorHandler, notFound } from './middlewares/errorHandler.js';
+import { getHealth } from './controllers/healthController.js';
 import logger from './utils/logger.js';
+
+// Validate configuration and prepare directories
+validateEnv();
 
 // Routes
 import authRoutes from './routes/authRoutes.js';
@@ -67,14 +72,7 @@ if (process.env.NODE_ENV === 'development') {
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // ─── Health Check ──────────────────────────────────────────────────────────────
-app.get('/api/health', (req, res) => {
-  res.json({
-    status: 'ok',
-    message: 'ELearnAI API is running',
-    timestamp: new Date().toISOString(),
-    environment: process.env.NODE_ENV,
-  });
-});
+app.get('/api/health', getHealth);
 
 // ─── API Routes ────────────────────────────────────────────────────────────────
 app.use('/api/auth', authRoutes);

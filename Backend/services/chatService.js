@@ -2,9 +2,8 @@ import Chat from '../models/Chat.js';
 import Course from '../models/Course.js';
 import { retrieveRelevantContext } from '../rag/retriever.js';
 import { buildChatSystemPrompt, buildChatPrompt } from '../ai/prompts/chatPrompt.js';
-import { groqComplete, groqStream } from '../ai/groqClient.js';
+import { grokComplete, grokStream } from '../ai/grokClient.js';
 import { createError } from '../utils/responseHelper.js';
-import logger from '../utils/logger.js';
 
 /**
  * Get or create a chat session for user+course
@@ -68,11 +67,11 @@ export const sendMessage = async (userId, courseId, userMessage, streaming = fal
 
   if (streaming) {
     // Return stream for SSE
-    const stream = await groqStream(chatMessages, { temperature: 0.7, maxTokens: 2000 });
+    const stream = await grokStream(chatMessages, { temperature: 0.7, maxTokens: 2000 });
     return { stream, chat };
   } else {
     // Non-streaming
-    assistantContent = await groqComplete(chatMessages, { temperature: 0.7, maxTokens: 2000 });
+    assistantContent = await grokComplete(chatMessages, { temperature: 0.7, maxTokens: 2000 });
   }
 
   // Save assistant message
@@ -81,7 +80,7 @@ export const sendMessage = async (userId, courseId, userMessage, streaming = fal
     content: assistantContent,
     metadata: {
       retrievedChunks: relevantChunks.map(c => c.substring(0, 100)),
-      model: process.env.GROQ_MODEL,
+      model: process.env.GROQ_MODEL || process.env.GROK_MODEL || 'openai/gpt-oss-120b',
     },
   });
 

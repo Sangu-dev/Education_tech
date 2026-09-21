@@ -1,7 +1,7 @@
-import { groqComplete, parseAIJson } from '../ai/groqClient.js';
+import { grokComplete, parseAIJson } from '../ai/grokClient.js';
 import { buildCourseGenerationPrompt } from '../ai/prompts/courseGenPrompt.js';
 import { buildQuizGenerationPrompt } from '../ai/prompts/quizGenPrompt.js';
-import { buildSummarizationPrompt } from '../ai/prompts/chatPrompt.js';
+import { buildSummarizationPrompt } from '../ai/prompts/summaryPrompt.js';
 import {
   buildTeacherScenePrompt,
   buildSingleSceneRegeneratePrompt,
@@ -15,7 +15,7 @@ export const generateCourseFromPDF = async (pdfText, options = {}) => {
   try {
     const messages = buildCourseGenerationPrompt(pdfText, options);
 
-    const response = await groqComplete(messages, {
+    const response = await grokComplete(messages, {
       temperature: 0.4,
       maxTokens: 8000,
       jsonMode: true,
@@ -43,7 +43,7 @@ export const generateQuizForChapter = async (chapterTitle, lessons, options = {}
   try {
     const messages = buildQuizGenerationPrompt(chapterTitle, lessons, options);
 
-    const response = await groqComplete(messages, {
+    const response = await grokComplete(messages, {
       temperature: 0.5,
       maxTokens: 8000,
       jsonMode: true,
@@ -69,7 +69,7 @@ export const generateQuizForChapter = async (chapterTitle, lessons, options = {}
 export const generateLessonSummary = async (lessonTitle, lessonContent) => {
   try {
     const messages = buildSummarizationPrompt(lessonContent, lessonTitle);
-    const summary = await groqComplete(messages, {
+    const summary = await grokComplete(messages, {
       temperature: 0.3,
       maxTokens: 1000,
     });
@@ -96,7 +96,7 @@ export const generateFollowUpQuestions = async (topic, context) => {
       },
     ];
 
-    const response = await groqComplete(messages, {
+    const response = await grokComplete(messages, {
       temperature: 0.7,
       maxTokens: 500,
       jsonMode: true,
@@ -122,7 +122,7 @@ export const generateLessonTeacherScenes = async (topicTitle, content, options =
       ...options,
     });
 
-    const response = await groqComplete(messages, {
+    const response = await grokComplete(messages, {
       temperature: 0.5,
       maxTokens: 8000,
       jsonMode: true,
@@ -134,23 +134,52 @@ export const generateLessonTeacherScenes = async (topicTitle, content, options =
       throw new Error('AI failed to generate video scenes array');
     }
 
-    // Ensure scenes have valid IDs and defaults
-    planData.scenes = planData.scenes.map((s, idx) => ({
-      scene_id: s.scene_id || idx + 1,
-      title: s.title || `Scene ${idx + 1}`,
-      duration: s.duration || 10,
-      narration: s.narration || '',
-      visual_description: s.visual_description || '',
-      animation_steps: Array.isArray(s.animation_steps) ? s.animation_steps : [],
-      on_screen_text: Array.isArray(s.on_screen_text) ? s.on_screen_text : [],
-      important_keywords: Array.isArray(s.important_keywords) ? s.important_keywords : [],
-      diagram_type: s.diagram_type || 'concept_map',
-      diagram_data: s.diagram_data || {},
-      transition: s.transition || 'fade',
-      educational_purpose: s.educational_purpose || 'explain_concept',
-    }));
+    // Ensure scenes have valid IDs and defaults matching the Programmatic Slide schema
+    planData.scenes = planData.scenes.map((s, idx) => {
+      // Clean and clamp on_screen_text to maximum 7 words
+      let rawPunchy = typeof s.on_screen_text === 'string'
+        ? s.on_screen_text
+        : (Array.isArray(s.on_screen_text) ? s.on_screen_text.join(' • ') : (s.title || `Concept ${idx + 1}`));
+      const punchyWords = rawPunchy.split(/\s+/).filter(Boolean);
+      const clampedPunchy = punchyWords.slice(0, 7).join(' ');
 
-    logger.info(`Generated ${planData.scenes.length} educational scenes for "${topicTitle}"`);
+      const validSlideTypes = ['cloud_architecture', 'process_flow', 'bullet_list', 'comparison'];
+      const desc = ((s.title || '') + ' ' + (s.narration || '')).toLowerCase();
+      let slideType = s.slide_type;
+      if (!validSlideTypes.includes(slideType)) {
+        if (desc.includes('cloud') || desc.includes('network') || desc.includes('server')) {
+          slideType = 'cloud_architecture';
+        } else if (desc.includes('stage') || desc.includes('step') || desc.includes('flow') || desc.includes('pipeline')) {
+          slideType = 'process_flow';
+        } else if (desc.includes('versus') || desc.includes('vs') || desc.includes('compare') || desc.includes('traditional')) {
+          slideType = 'comparison';
+        } else {
+          slideType = 'bullet_list';
+        }
+      }
+
+      return {
+        scene_id: s.scene_id || idx + 1,
+        title: s.title || `Scene ${idx + 1}`,
+        slide_type: slideType,
+        on_screen_text: clampedPunchy || s.title || 'Core Principle',
+        bullet_points: Array.isArray(s.bullet_points) && s.bullet_points.length > 0
+          ? s.bullet_points.slice(0, 3)
+          : [s.title || 'Key Architectural Concept', 'Core Intuition and Mechanics', 'Verified Implementation'],
+        diagram_data: (typeof s.diagram_data === 'object' && s.diagram_data !== null)
+          ? s.diagram_data
+          : {
+              stages: ['1. Ingestion', '2. Processing', '3. Storage'],
+              nodes: ['Storage', 'Compute', 'Database'],
+            },
+        narration: s.narration || `In this section, we examine ${s.title || topicTitle} to understand its core mechanics and operational value.`,
+        duration_estimate: Math.max(3.5, Number(s.duration_estimate || s.duration || 8.5)),
+        duration: Math.max(3.5, Number(s.duration_estimate || s.duration || 8.5)),
+        important_keywords: Array.isArray(s.important_keywords) ? s.important_keywords.slice(0, 3) : [topicTitle.slice(0, 15)],
+      };
+    });
+
+    logger.info(`Generated ${planData.scenes.length} programmatic slide scenes for "${topicTitle}"`);
     return planData;
   } catch (error) {
     logger.error(`Scene generation error: ${error.message}`);
@@ -166,21 +195,38 @@ export const regenerateSingleScene = async (scene, lessonContext, options = {}) 
     logger.info(`Regenerating scene #${scene.scene_id} for "${scene.title}"`);
     const messages = buildSingleSceneRegeneratePrompt(scene, lessonContext, options);
 
-    const response = await groqComplete(messages, {
+    const response = await grokComplete(messages, {
       temperature: 0.6,
       maxTokens: 4000,
       jsonMode: true,
     });
 
     const newScene = parseAIJson(response);
+    const validSlideTypes = ['cloud_architecture', 'process_flow', 'bullet_list', 'comparison'];
+    const slideType = validSlideTypes.includes(newScene.slide_type) ? newScene.slide_type : (scene.slide_type || 'process_flow');
+
+    let rawPunchy = typeof newScene.on_screen_text === 'string'
+      ? newScene.on_screen_text
+      : (Array.isArray(newScene.on_screen_text) ? newScene.on_screen_text.join(' • ') : (newScene.title || scene.on_screen_text || ''));
+    const clampedPunchy = rawPunchy.split(/\s+/).filter(Boolean).slice(0, 7).join(' ');
+
     return {
       ...scene,
       ...newScene,
-      scene_id: scene.scene_id, // preserve ID
+      scene_id: scene.scene_id,
+      title: newScene.title || scene.title,
+      slide_type: slideType,
+      on_screen_text: clampedPunchy || scene.on_screen_text,
+      bullet_points: Array.isArray(newScene.bullet_points) && newScene.bullet_points.length > 0
+        ? newScene.bullet_points.slice(0, 3)
+        : (scene.bullet_points || ['Foundational Concept', 'Operational Mechanism', 'Key Takeaway']),
+      diagram_data: newScene.diagram_data || scene.diagram_data || {},
+      narration: newScene.narration || scene.narration,
+      duration_estimate: Math.max(3.5, Number(newScene.duration_estimate || scene.duration || 8.5)),
+      duration: Math.max(3.5, Number(newScene.duration_estimate || scene.duration || 8.5)),
     };
   } catch (error) {
     logger.error(`Regenerate scene error: ${error.message}`);
-    throw error;
+    throw new Error(`Failed to regenerate scene: ${error.message}`);
   }
 };
-

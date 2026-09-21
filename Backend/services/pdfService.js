@@ -1,7 +1,9 @@
-import { extractTextFromPDF } from '../utils/pdfProcessor.js';
+import fs from 'fs';
+import path from 'path';
+import { extractTextFromPDF, sanitizeNotesText } from '../utils/pdfProcessor.js';
 import { splitTextIntoChunks } from '../utils/textChunker.js';
 import { indexCourseContent } from '../rag/retriever.js';
-import { generateCourseFromPDF, generateLessonTeacherScenes } from './aiService.js';
+import { generateCourseFromPDF } from './aiService.js';
 import { buildInitialLessonScenes } from '../controllers/videoController.js';
 import Course from '../models/Course.js';
 import Chapter from '../models/Chapter.js';
@@ -26,7 +28,7 @@ export const processPDFAndGenerateCourse = async (userId, fileInfo, options = {}
   // 1. Create course placeholder
   const course = await Course.create({
     userId,
-    title: originalname.replace(/\.pdf$/i, '').replace(/[-_]/g, ' '),
+    title: originalname.replace(/\.(pdf|txt|md|markdown)$/i, '').replace(/[-_]/g, ' '),
     description: 'Generating course content...',
     pdfName: originalname,
     pdfPath: filePath,
@@ -50,21 +52,31 @@ export const processPDFAndGenerateCourse = async (userId, fileInfo, options = {}
 
 const processCourseAsync = async (courseId, filePath, originalname, options = {}) => {
   try {
-    // 2. Extract text from PDF
-    logger.info(`Extracting text from PDF: ${originalname}`);
-    const { text, numPages } = await extractTextFromPDF(filePath);
+    const ext = path.extname(originalname).toLowerCase();
+    let text = '';
+    let numPages = 1;
 
-    if (!text || text.trim().length < 100) {
+    // 2. Extract text based on file format
+    logger.info(`Extracting text from notes file: ${originalname} (${ext})`);
+    if (ext === '.txt' || ext === '.md' || ext === '.markdown') {
+      text = sanitizeNotesText(fs.readFileSync(filePath, 'utf-8'));
+    } else {
+      const extracted = await extractTextFromPDF(filePath);
+      text = extracted.text;
+      numPages = extracted.numPages || 1;
+    }
+
+    if (!text || text.trim().length < 15) {
       const charCount = text?.trim().length || 0;
-      if (charCount < 10 && numPages > 0) {
+      if (charCount < 10 && numPages > 0 && ext === '.pdf') {
         throw new Error(
           `This PDF appears to be an image-based or scanned document (${numPages} pages, ${charCount} characters extracted). ` +
-          'Please upload a PDF with selectable text. You can use Adobe Acrobat or an online OCR tool to convert scanned PDFs.'
+          'Please upload a PDF with selectable text, or a .txt / .md notes file.'
         );
       }
       throw new Error(
-        `PDF contains very little extractable text (only ${charCount} characters across ${numPages} pages). ` +
-        'Please ensure the PDF has readable text content.'
+        `Notes file contains very little text (only ${charCount} characters). ` +
+        'Please ensure the file has meaningful educational content.'
       );
     }
 

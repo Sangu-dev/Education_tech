@@ -6,11 +6,13 @@ import { fileURLToPath } from 'url';
 import { spawn } from 'child_process';
 import logger from '../utils/logger.js';
 
+import { getFfmpegPath } from './binaryResolver.js';
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const ROOT_DIR = path.resolve(__dirname, '..');
 const AUDIO_DIR = path.join(ROOT_DIR, 'uploads', 'audio');
-const FFMPEG_PATH = path.join(ROOT_DIR, 'bin', 'ffmpeg.exe');
+const FFMPEG_PATH = getFfmpegPath();
 
 // Ensure audio dir exists
 fs.mkdirSync(AUDIO_DIR, { recursive: true });
@@ -142,8 +144,9 @@ const EDGE_TTS_SCRIPT = path.join(__dirname, 'edgeTtsHelper.py');
 /**
  * Generate speech via Python Edge-TTS helper
  */
-function generateEdgeTTS(text, lang, outputPath) {
+function generateEdgeTTS(text, lang, outputPath, timeoutMs = 30000) {
   return new Promise((resolve, reject) => {
+    let finished = false;
     const tempTextFile = path.join(AUDIO_DIR, `temp_text_${Date.now()}_${Math.random().toString(36).slice(2, 6)}.txt`);
     fs.writeFileSync(tempTextFile, text || '', 'utf-8');
 
@@ -154,13 +157,25 @@ function generateEdgeTTS(text, lang, outputPath) {
       '--output', outputPath,
     ], { windowsHide: true });
 
+    const timer = setTimeout(() => {
+      if (!finished) {
+        finished = true;
+        try { proc.kill('SIGKILL'); } catch (_e) { /* ignore */ }
+        try { if (fs.existsSync(tempTextFile)) fs.unlinkSync(tempTextFile); } catch (_err) { /* ignore */ }
+        reject(new Error(`edge-tts synthesis timed out after ${timeoutMs}ms`));
+      }
+    }, timeoutMs);
+
     let stdout = '';
     let stderr = '';
     proc.stdout?.on('data', (d) => { stdout += d.toString(); });
     proc.stderr?.on('data', (d) => { stderr += d.toString(); });
 
     proc.on('close', (code) => {
-      try { if (fs.existsSync(tempTextFile)) fs.unlinkSync(tempTextFile); } catch {}
+      if (finished) return;
+      finished = true;
+      clearTimeout(timer);
+      try { if (fs.existsSync(tempTextFile)) fs.unlinkSync(tempTextFile); } catch (_err) { /* ignore */ }
       if (code === 0 && fs.existsSync(outputPath) && fs.statSync(outputPath).size > 500) {
         resolve(true);
       } else {
@@ -169,7 +184,10 @@ function generateEdgeTTS(text, lang, outputPath) {
     });
 
     proc.on('error', (err) => {
-      try { if (fs.existsSync(tempTextFile)) fs.unlinkSync(tempTextFile); } catch {}
+      if (finished) return;
+      finished = true;
+      clearTimeout(timer);
+      try { if (fs.existsSync(tempTextFile)) fs.unlinkSync(tempTextFile); } catch (_err) { /* ignore */ }
       reject(err);
     });
   });
