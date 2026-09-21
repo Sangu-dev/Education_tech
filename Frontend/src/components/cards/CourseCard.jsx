@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
-import { BookOpen, Clock, BarChart2, Trash2, ArrowRight, Loader2 } from 'lucide-react';
+import { BookOpen, Clock, Trash2, ArrowRight, Loader2 } from 'lucide-react';
 import ProgressBar from '../ui/ProgressBar.jsx';
 
 const difficultyColors = {
@@ -17,7 +17,6 @@ const statusColors = {
 
 export default function CourseCard({ course, progress, onDelete, index = 0 }) {
   const isProcessing = course.status === 'processing';
-  const isFailed = course.status === 'failed';
 
   return (
     <motion.div

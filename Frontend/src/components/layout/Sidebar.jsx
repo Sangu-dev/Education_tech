@@ -1,7 +1,7 @@
-import { NavLink, useLocation } from 'react-router-dom';
+import { NavLink } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  LayoutDashboard, Upload, BookOpen, MessageSquare,
+  LayoutDashboard, Upload,
   User, Settings, X, Sparkles, TrendingUp,
   Trophy, Clock,
 } from 'lucide-react';
@@ -16,7 +16,6 @@ const navLinks = [
 
 export default function Sidebar({ open, onClose }) {
   const { user } = useAuth();
-  const location = useLocation();
 
   const sidebarContent = (
     <div className="flex flex-col h-full">

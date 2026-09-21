@@ -1,10 +1,43 @@
 import { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import {
-  Brain, Cpu, Database, Network, ArrowRight, Play,
-  CheckCircle2, Sparkles, Terminal, Layers, GitBranch,
-  Calendar, BarChart2, RefreshCw, Calculator, Hash
+  Brain, Cpu, Database, ArrowRight,
+  CheckCircle2, Sparkles, Terminal, Calculator
 } from 'lucide-react';
+
+// Helper to guarantee an array of clean strings for safe iteration (.map, .slice, etc.)
+function ensureArray(val) {
+  if (!val) return [];
+  if (Array.isArray(val)) {
+    return val
+      .map((item) => {
+        if (typeof item === 'string') return item.trim();
+        if (item && typeof item === 'object') {
+          return item.label || item.title || item.name || item.text || JSON.stringify(item);
+        }
+        return item != null ? String(item).trim() : '';
+      })
+      .filter(Boolean);
+  }
+  if (typeof val === 'string') {
+    const trimmed = val.trim();
+    if (!trimmed) return [];
+    if (trimmed.includes('•')) {
+      return trimmed.split('•').map((s) => s.trim()).filter(Boolean);
+    }
+    if (trimmed.includes('\n')) {
+      return trimmed.split('\n').map((s) => s.trim()).filter(Boolean);
+    }
+    if (trimmed.includes(';')) {
+      return trimmed.split(';').map((s) => s.trim()).filter(Boolean);
+    }
+    if (trimmed.includes(',')) {
+      return trimmed.split(',').map((s) => s.trim()).filter(Boolean);
+    }
+    return [trimmed];
+  }
+  return [String(val).trim()].filter(Boolean);
+}
 
 export default function DiagramRenderer({
   diagramType = 'concept_map',
@@ -16,6 +49,9 @@ export default function DiagramRenderer({
   activeStep = 0,
 }) {
   const type = (diagramType || 'concept_map').toLowerCase();
+  const safeKeywords = ensureArray(keywords);
+  const safeOnScreenText = ensureArray(onScreenText);
+  const safeDiagramData = typeof diagramData === 'object' && diagramData !== null ? diagramData : {};
 
   // Pick theme style wrapper
   const getStyleWrapper = () => {
@@ -57,19 +93,19 @@ export default function DiagramRenderer({
 
       {/* Visual Canvas Body */}
       <div className="relative z-10 flex-1 flex items-center justify-center my-2">
-        {type === 'neural_network' && <NeuralNetworkVisual data={diagramData} activeStep={activeStep} />}
+        {type === 'neural_network' && <NeuralNetworkVisual data={safeDiagramData} activeStep={activeStep} />}
         {(type === 'ml_pipeline' || type === 'process' || type === 'pipeline') && (
-          <PipelineVisual data={diagramData} fallbackItems={onScreenText} activeStep={activeStep} />
+          <PipelineVisual data={safeDiagramData} fallbackItems={safeOnScreenText} activeStep={activeStep} />
         )}
-        {(type === 'sorting' || type === 'algorithm') && <SortingVisual data={diagramData} />}
+        {(type === 'sorting' || type === 'algorithm') && <SortingVisual data={safeDiagramData} />}
         {(type === 'flowchart' || type === 'decision') && (
-          <FlowchartVisual data={diagramData} fallbackItems={onScreenText} activeStep={activeStep} />
+          <FlowchartVisual data={safeDiagramData} fallbackItems={safeOnScreenText} activeStep={activeStep} />
         )}
-        {type === 'timeline' && <TimelineVisual data={diagramData} activeStep={activeStep} />}
-        {(type === 'comparison' || type === 'table') && <ComparisonVisual data={diagramData} />}
-        {(type === 'architecture' || type === 'system') && <ArchitectureVisual data={diagramData} />}
-        {(type === 'code_execution' || type === 'code') && <CodeExecutionVisual data={diagramData} onScreenText={onScreenText} />}
-        {(type === 'formula' || type === 'math') && <FormulaVisual title={title} onScreenText={onScreenText} />}
+        {type === 'timeline' && <TimelineVisual data={safeDiagramData} activeStep={activeStep} />}
+        {(type === 'comparison' || type === 'table') && <ComparisonVisual data={safeDiagramData} />}
+        {(type === 'architecture' || type === 'system') && <ArchitectureVisual data={safeDiagramData} />}
+        {(type === 'code_execution' || type === 'code') && <CodeExecutionVisual data={safeDiagramData} onScreenText={safeOnScreenText} />}
+        {(type === 'formula' || type === 'math') && <FormulaVisual title={title} onScreenText={safeOnScreenText} />}
         {type !== 'neural_network' &&
           type !== 'ml_pipeline' &&
           type !== 'process' &&
@@ -87,14 +123,14 @@ export default function DiagramRenderer({
           type !== 'code' &&
           type !== 'formula' &&
           type !== 'math' && (
-            <ConceptMapVisual title={title} keywords={keywords} onScreenText={onScreenText} activeStep={activeStep} />
+            <ConceptMapVisual title={title} keywords={safeKeywords} onScreenText={safeOnScreenText} activeStep={activeStep} />
           )}
       </div>
 
       {/* Bottom Keywords Ribbon */}
-      {keywords && keywords.length > 0 && (
+      {safeKeywords.length > 0 && (
         <div className="relative z-10 flex items-center justify-center gap-2 flex-wrap pt-2 border-t border-white/5">
-          {keywords.slice(0, 4).map((kw, i) => (
+          {safeKeywords.slice(0, 4).map((kw, i) => (
             <motion.span
               key={i}
               initial={{ opacity: 0, y: 8 }}
@@ -228,8 +264,11 @@ function NeuralNetworkVisual({ activeStep = 0 }) {
 
 // ─── 2. Pipeline / Machine Learning Flow Visual ───────────────────────────────
 function PipelineVisual({ data = {}, fallbackItems = [], activeStep = 0 }) {
-  const steps = data.steps || (fallbackItems.length >= 3 ? fallbackItems : ['Dataset', 'Training', 'Model', 'Prediction']);
-  const pulseIdx = activeStep % Math.min(steps.length, 4);
+  const rawSteps = Array.isArray(data?.steps) && data.steps.length > 0
+    ? ensureArray(data.steps)
+    : ensureArray(fallbackItems);
+  const steps = rawSteps.length >= 2 ? rawSteps : ['Dataset', 'Training', 'Model', 'Prediction'];
+  const pulseIdx = activeStep % Math.max(1, Math.min(steps.length, 4));
 
   return (
     <div className="flex items-center justify-center gap-2 md:gap-4 w-full max-w-2xl px-2">
@@ -333,8 +372,12 @@ function SortingVisual() {
 
 // ─── 4. Flowchart Visual ───────────────────────────────────────────────────────
 function FlowchartVisual({ data = {}, fallbackItems = [], activeStep = 0 }) {
-  const items = data.nodes?.map((n) => n.label) || fallbackItems || ['Start', 'Evaluate Condition', 'Execute', 'Output'];
-  const activeIdx = activeStep % Math.min(items.length, 3);
+  const nodeLabels = Array.isArray(data?.nodes)
+    ? data.nodes.map((n) => (typeof n === 'string' ? n : n?.label || n?.title || '')).filter(Boolean)
+    : [];
+  const rawFallback = ensureArray(fallbackItems);
+  const items = nodeLabels.length > 0 ? nodeLabels : (rawFallback.length > 0 ? rawFallback : ['Start', 'Evaluate Condition', 'Execute', 'Output']);
+  const activeIdx = activeStep % Math.max(1, Math.min(items.length, 3));
 
   return (
     <div className="flex flex-col items-center gap-3 w-full max-w-md">
@@ -365,8 +408,9 @@ function FlowchartVisual({ data = {}, fallbackItems = [], activeStep = 0 }) {
 
 // ─── 5. Timeline Visual ───────────────────────────────────────────────────────
 function TimelineVisual({ data = {}, activeStep = 0 }) {
-  const events = data.events || ['Genesis', 'Phase 1: Discovery', 'Phase 2: Scale', 'Phase 3: Impact'];
-  const activeIdx = activeStep % Math.min(events.length, 4);
+  const rawEvents = ensureArray(data?.events);
+  const events = rawEvents.length > 0 ? rawEvents : ['Genesis', 'Phase 1: Discovery', 'Phase 2: Scale', 'Phase 3: Impact'];
+  const activeIdx = activeStep % Math.max(1, Math.min(events.length, 4));
 
   return (
     <div className="relative w-full max-w-xl px-4">
@@ -398,8 +442,10 @@ function TimelineVisual({ data = {}, activeStep = 0 }) {
 function ComparisonVisual({ data = {} }) {
   const leftTitle = data.left_title || data.left?.title || 'Approach A';
   const rightTitle = data.right_title || data.right?.title || 'Approach B';
-  const leftPoints = data.left?.points || ['Simple & Intuitive', 'Fast Execution', 'Low Memory'];
-  const rightPoints = data.right?.points || ['Scalable & Robust', 'High Accuracy', 'Production-Grade'];
+  const rawLeft = ensureArray(data.left?.points || data.left_points || data.left);
+  const leftPoints = rawLeft.length > 0 ? rawLeft : ['Simple & Intuitive', 'Fast Execution', 'Low Memory'];
+  const rawRight = ensureArray(data.right?.points || data.right_points || data.right);
+  const rightPoints = rawRight.length > 0 ? rawRight : ['Scalable & Robust', 'High Accuracy', 'Production-Grade'];
 
   return (
     <div className="grid grid-cols-2 gap-4 w-full max-w-lg">
@@ -454,8 +500,13 @@ function ArchitectureVisual() {
 }
 
 // ─── 8. Code Execution Visual ─────────────────────────────────────────────────
-function CodeExecutionVisual({ onScreenText = [] }) {
-  const lines = onScreenText.length >= 2 ? onScreenText : [
+function CodeExecutionVisual({ data = {}, onScreenText = [] }) {
+  const codeLines = Array.isArray(data?.code)
+    ? data.code
+    : (typeof data?.code === 'string' ? data.code.split('\n') : []);
+  const safeText = ensureArray(onScreenText);
+  const candidate = codeLines.length > 0 ? codeLines : safeText;
+  const lines = candidate.length >= 2 ? candidate : [
     'model = NeuralNetwork(layers=[3, 4, 2])',
     'model.fit(X_train, y_train, epochs=100)',
     'accuracy = model.evaluate(X_test)'
@@ -483,8 +534,9 @@ function CodeExecutionVisual({ onScreenText = [] }) {
 
 // ─── 9. Formula Visual ─────────────────────────────────────────────────────────
 function FormulaVisual({ title = '', onScreenText = [] }) {
-  const mainEq = onScreenText[0] || title || 'f(x) = σ(W · x + b)';
-  const desc = onScreenText[1] || 'Mathematical formulation of the underlying mechanism';
+  const items = ensureArray(onScreenText);
+  const mainEq = items[0] || (typeof title === 'string' && title.includes('=') ? title : 'f(x) = σ(W · x + b)');
+  const desc = items[1] || (items[0] && items[0] !== mainEq ? items[0] : (title || 'Mathematical formulation of the underlying mechanism'));
 
   return (
     <div className="flex flex-col items-center justify-center p-6 rounded-2xl bg-slate-900/90 border border-cyan-500/30 max-w-lg shadow-xl text-center">
@@ -506,7 +558,15 @@ function FormulaVisual({ title = '', onScreenText = [] }) {
 
 // ─── 10. Concept Map Visual with Dynamic Satellite Beam Pulses ────────────────
 function ConceptMapVisual({ title = '', keywords = [], onScreenText = [], activeStep = 0 }) {
-  const items = onScreenText.length > 0 ? onScreenText : keywords.length > 0 ? keywords : ['Concept Intuition', 'Key Mechanism', 'Real-World Impact'];
+  const safeOnScreen = ensureArray(onScreenText);
+  const safeKeywords = ensureArray(keywords);
+  const combined = Array.from(new Set([...safeOnScreen, ...safeKeywords]));
+  const defaultItems = ['Concept Intuition', 'Key Mechanism', 'Real-World Impact', 'Practical Application'];
+  const items = combined.length === 0
+    ? defaultItems
+    : combined.length < 3
+    ? [...combined, ...defaultItems.slice(combined.length)]
+    : combined;
   const activeIdx = activeStep % Math.max(1, items.length);
 
   return (

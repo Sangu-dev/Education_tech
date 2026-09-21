@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { Bot, User, Sparkles, Copy, Check } from 'lucide-react';
+import { User, Sparkles, Copy, Check } from 'lucide-react';
 import { useState } from 'react';
 
 export default function ChatBubble({ message, isUser }) {
