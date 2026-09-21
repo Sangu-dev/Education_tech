@@ -11,7 +11,7 @@ export const buildCourseGenerationPrompt = (pdfText, options = {}) => {
     ? pdfText.substring(0, maxTextLength) + '\n\n[Content truncated for length...]'
     : pdfText;
 
-  const validDiff = ['beginner', 'intermediate', 'advanced'].includes(String(difficulty).toLowerCase())
+  const validDiff = ['beginner', 'school', 'college', 'intermediate', 'advanced'].includes(String(difficulty).toLowerCase())
     ? difficulty.toLowerCase()
     : 'beginner';
 

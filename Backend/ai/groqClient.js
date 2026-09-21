@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import Groq from 'groq-sdk';
 import logger from '../utils/logger.js';
 
@@ -7,11 +8,14 @@ const apiKey = process.env.GROQ_API_KEY;
 const DEFAULT_MODEL = process.env.GROQ_MODEL || 'groq/compound';
 const FAST_MODEL = 'groq/compound-mini';
 
-// Initialize Groq client ONLY if key exists.
-// This prevents the whole backend from crashing at import-time.
-const groq = apiKey
-  ? new Groq({ apiKey })
-  : null;
+// Get Groq client dynamically so env changes take effect immediately
+export const getGroqClient = () => {
+  const currentKey = process.env.GROQ_API_KEY;
+  if (!currentKey || currentKey === 'your_groq_api_key_here' || currentKey.includes('your_groq_api')) {
+    throw new Error('GROQ_API_KEY is missing or set to placeholder in Backend/.env. Please configure a valid Groq API key.');
+  }
+  return new Groq({ apiKey: currentKey });
+};
 
 const isModelError = (err) => {
   if (!err) return false;
@@ -33,9 +37,7 @@ const isModelError = (err) => {
  * @returns {Promise<string>} The AI response text
  */
 export const groqComplete = async (messages, options = {}, retries = 3) => {
-  if (!groq) {
-    throw new Error('GROQ_API_KEY is missing or empty. Add it to Backend/.env to enable AI features.');
-  }
+  const client = getGroqClient();
 
   try {
     const {
@@ -45,7 +47,7 @@ export const groqComplete = async (messages, options = {}, retries = 3) => {
       jsonMode = false,
     } = options;
 
-    const completion = await groq.chat.completions.create({
+    const completion = await client.chat.completions.create({
       model,
       messages,
       temperature,
@@ -101,9 +103,7 @@ export const groqComplete = async (messages, options = {}, retries = 3) => {
  * Stream a completion from Groq (for chat)
  */
 export const groqStream = async (messages, options = {}) => {
-  if (!groq) {
-    throw new Error('GROQ_API_KEY is missing or empty. Add it to Backend/.env to enable AI features.');
-  }
+  const client = getGroqClient();
 
   const {
     model = DEFAULT_MODEL,
@@ -112,7 +112,7 @@ export const groqStream = async (messages, options = {}) => {
   } = options;
 
   try {
-    return await groq.chat.completions.create({
+    return await client.chat.completions.create({
       model,
       messages,
       temperature,
@@ -122,7 +122,7 @@ export const groqStream = async (messages, options = {}) => {
   } catch (error) {
     if (isModelError(error)) {
       logger.warn(`Model '${model}' unavailable for streaming. Falling back to groq/compound.`);
-      return groq.chat.completions.create({
+      return client.chat.completions.create({
         model: 'groq/compound',
         messages,
         temperature,
@@ -229,5 +229,5 @@ export const parseAIJson = (text) => {
 };
 
 export { DEFAULT_MODEL, FAST_MODEL };
-export default groq;
+export default getGroqClient;
 
