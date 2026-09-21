@@ -73,7 +73,7 @@ export default function LoginPage() {
 
           {/* Feature pills */}
           <div className="space-y-3">
-            {floatingItems.map(({ icon: Icon, label, delay }, i) => (
+            {floatingItems.map(({ icon: Icon, label, delay }) => (
               <motion.div
                 key={label}
                 initial={{ opacity: 0, x: -20 }}

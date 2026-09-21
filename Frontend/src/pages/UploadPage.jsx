@@ -6,7 +6,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Upload, FileText, CheckCircle2, XCircle, Loader2,
   Sparkles, BookOpen, ChevronRight, Trash2, RefreshCw,
-  Sliders, Palette, GraduationCap, Video, Layers, Brain
+  Palette, GraduationCap
 } from 'lucide-react';
 import DashboardLayout from '../components/layout/DashboardLayout.jsx';
 import { uploadAPI } from '../api/upload.js';
@@ -79,7 +79,7 @@ export default function UploadPage() {
       });
     },
     onSuccess: () => {
-      toast.success('PDF uploaded! AI Teacher is building your animated course…');
+      toast.success('Document uploaded! AI Teacher is building your animated course…');
       setUploadedFile(null);
       setUploadProgress(0);
       queryClient.invalidateQueries({ queryKey: ['courses'] });
@@ -101,7 +101,7 @@ export default function UploadPage() {
 
   const onDrop = useCallback((accepted, rejected) => {
     if (rejected.length > 0) {
-      toast.error('Only PDF files under 50MB are accepted');
+      toast.error('Only PDF, TXT, or Markdown files under 50MB are accepted');
       return;
     }
     if (accepted[0]) {
@@ -111,7 +111,11 @@ export default function UploadPage() {
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
-    accept: { 'application/pdf': ['.pdf'] },
+    accept: {
+      'application/pdf': ['.pdf'],
+      'text/plain': ['.txt'],
+      'text/markdown': ['.md', '.markdown'],
+    },
     maxSize: 50 * 1024 * 1024,
     multiple: false,
     disabled: uploading,
@@ -137,7 +141,7 @@ export default function UploadPage() {
               AI Teacher Animated Video
             </span>
           </div>
-          <h1 className="text-3xl md:text-4xl font-display font-bold text-white">Upload PDF to Animated Video</h1>
+          <h1 className="text-3xl md:text-4xl font-display font-bold text-white">Upload Notes to Animated Video</h1>
           <p className="text-slate-400 mt-1.5 text-sm md:text-base">
             Upload your document. The AI teacher analyzes key concepts, crafts analogies, structures visual scenes, and renders an animated lesson video.
           </p>
@@ -266,10 +270,10 @@ export default function UploadPage() {
                   <Upload size={28} className="text-brand-400" />
                 </div>
                 <p className="text-white font-semibold text-base mb-1">
-                  {isDragActive ? 'Drop your PDF here!' : 'Drag & drop your PDF here'}
+                  {isDragActive ? 'Drop your notes here!' : 'Drag & drop your notes here'}
                 </p>
                 <p className="text-slate-400 text-xs">
-                  or <span className="text-brand-400 font-medium">browse files</span> · PDF only · Max 50MB
+                  or <span className="text-brand-400 font-medium">browse files</span> · PDF, TXT, or Markdown · Max 50MB
                 </p>
               </>
             )}

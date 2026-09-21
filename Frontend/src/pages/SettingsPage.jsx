@@ -2,8 +2,8 @@ import { useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  User, Lock, Bell, Palette, Trash2, Eye, EyeOff,
-  Save, Loader2, ChevronRight, AlertTriangle, Moon, Sun,
+  User, Lock, Palette, Trash2, Eye, EyeOff,
+  Save, Loader2, AlertTriangle, Moon, Sun,
   Shield,
 } from 'lucide-react';
 import DashboardLayout from '../components/layout/DashboardLayout.jsx';
@@ -287,6 +287,7 @@ export default function SettingsPage() {
         message="This will permanently delete your account, all courses, and progress. This action cannot be undone."
         confirmText="Delete Forever"
         variant="danger"
+        loading={deleting}
       />
     </DashboardLayout>
   );
