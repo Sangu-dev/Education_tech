@@ -1,10 +1,10 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Play, Pause, RotateCcw, Volume2, VolumeX, Maximize2, Minimize2,
   Download, RefreshCw, Film, Sparkles, Globe, Loader2, ChevronRight,
-  ChevronLeft, List, CheckCircle2, AlertCircle, FastForward, Rewind,
-  Sliders, Video, BookOpen, Layers, SkipForward
+  ChevronLeft, List, AlertCircle, FastForward, Rewind,
+  Video, Layers
 } from 'lucide-react';
 import DiagramRenderer from './DiagramRenderer.jsx';
 import { videoAPI } from '../../api/video.js';
@@ -76,17 +76,19 @@ export default function VideoLessonPlayer({ lesson, onLessonUpdate }) {
 
             if (data.videoStatus === 'ready' && data.videoUrl) {
               setIsGeneratingVideo(false);
+              setActiveTab('mp4');
               toast.success('🎬 Animated video is ready!');
               clearInterval(timer);
               if (onLessonUpdate) onLessonUpdate();
             } else if (data.videoStatus === 'failed') {
               setIsGeneratingVideo(false);
-              toast.error(data.videoProgressStep || 'Video generation failed');
+              setActiveTab('interactive');
+              toast.error(data.videoProgressStep || 'Video generation encountered an issue. Switching to Interactive Teacher canvas.');
               clearInterval(timer);
             }
           }
-        } catch {
-          // ignore poll error
+        } catch (_err) {
+          // Ignore transient network errors during background polling
         }
       }, 2000);
     }
@@ -96,18 +98,25 @@ export default function VideoLessonPlayer({ lesson, onLessonUpdate }) {
   // Sync props when lesson updates
   useEffect(() => {
     if (lesson) {
-      setVideoStatus(lesson.videoStatus || 'none');
+      const status = lesson.videoStatus || 'none';
+      setVideoStatus(status);
       setVideoUrl(lesson.videoUrl || null);
       setScenes(lesson.scenes || []);
       setVideoError(false);
+      if (status === 'ready' && lesson.videoUrl) {
+        setActiveTab('mp4');
+      } else {
+        setActiveTab('interactive');
+      }
     }
   }, [lesson]);
 
   // Clean up audio on unmount or tab switch
   useEffect(() => {
+    const audioEl = interactiveAudioRef.current;
     return () => {
       if (window.speechSynthesis) window.speechSynthesis.cancel();
-      if (interactiveAudioRef.current) interactiveAudioRef.current.pause();
+      if (audioEl) audioEl.pause();
     };
   }, []);
 
@@ -122,15 +131,15 @@ export default function VideoLessonPlayer({ lesson, onLessonUpdate }) {
   };
 
   // Synchronize active animation step to audio progress
+  const totalAnimationSteps = Math.max(currentScene.animation_steps?.length || 3, 3);
   useEffect(() => {
-    const totalSteps = Math.max(currentScene.animation_steps?.length || 3, 3);
     if (interactiveDuration > 0) {
-      const step = Math.min(totalSteps - 1, Math.floor((interactiveTime / interactiveDuration) * totalSteps));
+      const step = Math.min(totalAnimationSteps - 1, Math.floor((interactiveTime / interactiveDuration) * totalAnimationSteps));
       setActiveInteractiveStep(step);
     } else {
       setActiveInteractiveStep(0);
     }
-  }, [interactiveTime, interactiveDuration, currentScene]);
+  }, [interactiveTime, interactiveDuration, totalAnimationSteps]);
 
   // Reset interactive audio on scene change
   useEffect(() => {

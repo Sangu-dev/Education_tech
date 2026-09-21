@@ -23,7 +23,7 @@ Return a 2-3 sentence engaging summary that would make a student excited to star
 };
 
 export const buildPDFSummaryPrompt = (pdfText, pdfName) => {
-  const trimmed = pdfText.substring(0, 5000);
+  const trimmed = pdfText.substring(0, 20000);
   return [
     {
       role: 'system',
@@ -46,3 +46,34 @@ Provide:
     },
   ];
 };
+
+export const buildSummarizationPrompt = (lessonContent, lessonTitle) => {
+  return [
+    {
+      role: 'system',
+      content: 'You are an expert at creating concise, memorable educational lesson summaries. Be structured, intuitive, and clear.',
+    },
+    {
+      role: 'user',
+      content: `Create a comprehensive, beautifully structured summary of this lesson.
+
+Lesson Title: ${lessonTitle}
+
+Content:
+${lessonContent.substring(0, 20000)}
+
+Format your response strictly as Markdown:
+## 📌 Summary
+[2-3 intuitive, educational paragraphs explaining the core concept clearly]
+
+## 💡 Key Takeaways
+- **Point 1**: Core insight
+- **Point 2**: Mechanism explanation
+- **Point 3**: Practical implication
+
+## 🎯 Remember
+> [One memorable, foundational sentence that captures the exact intuition of the lesson]`,
+    },
+  ];
+};
+

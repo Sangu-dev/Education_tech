@@ -18,7 +18,7 @@ export default function ProfilePage() {
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState({ name: user?.name || '', bio: user?.bio || '' });
 
-  const { data: profile, isLoading } = useQuery({
+  const { data: profile } = useQuery({
     queryKey: ['profile'],
     queryFn: () => profileAPI.get().then(r => r.data.data.user),
   });

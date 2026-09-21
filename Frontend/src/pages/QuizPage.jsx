@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -15,7 +15,6 @@ const STAGE = { LOADING: 'loading', READY: 'ready', TAKING: 'taking', RESULTS: '
 
 export default function QuizPage() {
   const { courseId, chapterId } = useParams();
-  const navigate = useNavigate();
   const [stage, setStage] = useState(STAGE.LOADING);
   const [quiz, setQuiz] = useState(null);
   const [currentQ, setCurrentQ] = useState(0);

@@ -1,4 +1,4 @@
-import { groqComplete } from '../ai/groqClient.js';
+import { grokComplete } from '../ai/grokClient.js';
 import { asyncHandler, sendSuccess, createError } from '../utils/responseHelper.js';
 import https from 'https';
 
@@ -53,7 +53,7 @@ Rules:
     },
   ];
 
-  const translatedText = await groqComplete(messages, {
+  const translatedText = await grokComplete(messages, {
     temperature: 0.3,
     maxTokens: 2000,
   });

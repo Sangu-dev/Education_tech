@@ -2,8 +2,7 @@ import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
   Upload, Brain, BookOpen, MessageSquare, Trophy,
-  ArrowRight, Sparkles, Check, Zap, Shield, Star,
-  ChevronRight, Play,
+  ArrowRight, Sparkles, Check, Zap, Play,
 } from 'lucide-react';
 
 const features = [

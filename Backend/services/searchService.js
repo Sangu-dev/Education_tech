@@ -5,13 +5,12 @@ import Lesson from '../models/Lesson.js';
 /**
  * Full-text search across courses, chapters, and lessons
  */
-export const searchAll = async (userId, query, { page = 1, limit = 10 } = {}) => {
+export const searchAll = async (userId, query) => {
   if (!query || query.trim().length < 2) {
     return { courses: [], chapters: [], lessons: [], total: 0 };
   }
 
   const searchQuery = { $text: { $search: query } };
-  const skip = (page - 1) * limit;
 
   // Search courses (user's own)
   const courses = await Course.find({

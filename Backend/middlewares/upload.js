@@ -43,12 +43,22 @@ const avatarStorage = multer.diskStorage({
   },
 });
 
-// File filter for PDFs
-const pdfFilter = (req, file, cb) => {
-  if (file.mimetype === 'application/pdf') {
+// File filter for documents (PDF, TXT, MD)
+const documentFilter = (req, file, cb) => {
+  const ext = path.extname(file.originalname).toLowerCase();
+  const allowedExts = ['.pdf', '.txt', '.md', '.markdown'];
+  const allowedMimes = [
+    'application/pdf',
+    'text/plain',
+    'text/markdown',
+    'text/x-markdown',
+    'application/octet-stream',
+  ];
+
+  if (allowedExts.includes(ext) || allowedMimes.includes(file.mimetype)) {
     cb(null, true);
   } else {
-    cb(new Error('Only PDF files are allowed'), false);
+    cb(new Error('Only PDF, TXT, and Markdown notes files are allowed'), false);
   }
 };
 
@@ -78,13 +88,13 @@ export const parseFileSize = (sizeStr, defaultBytes = 50 * 1024 * 1024) => {
   }
 };
 
-// Upload PDF multer instance
+// Upload document multer instance
 export const uploadPDF = multer({
   storage: pdfStorage,
   limits: {
     fileSize: parseFileSize(process.env.MAX_FILE_SIZE, 50 * 1024 * 1024), // 50MB default
   },
-  fileFilter: pdfFilter,
+  fileFilter: documentFilter,
 }).single('pdf');
 
 // Upload avatar multer instance

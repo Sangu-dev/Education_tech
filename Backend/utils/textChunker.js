@@ -37,7 +37,7 @@ export const splitTextIntoChunks = (
 
       // If paragraph itself is too long, split by sentences
       if (trimmed.length > chunkSize) {
-        const subChunks = splitBySentences(trimmed, chunkSize, chunkOverlap);
+        const subChunks = splitBySentences(trimmed, chunkSize);
         // Add all but last with overlap for next
         for (let i = 0; i < subChunks.length - 1; i++) {
           chunks.push(subChunks[i]);
@@ -61,7 +61,7 @@ export const splitTextIntoChunks = (
 /**
  * Split a long paragraph by sentences
  */
-const splitBySentences = (text, chunkSize, chunkOverlap) => {
+const splitBySentences = (text, chunkSize) => {
   const sentences = text.match(/[^.!?]+[.!?]+/g) || [text];
   const chunks = [];
   let current = '';

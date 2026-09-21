@@ -1,7 +1,7 @@
 /**
  * AI Teacher Scene Planner & Pedagogical Explanation Prompt
- * Transforms PDF / lesson content into a structured educational video plan
- * with conversational teacher narration, diagrams, and synchronized animation steps.
+ * Transforms lesson concepts into a clean, structured programmatic slide blueprint.
+ * All visuals are rendered with code (no external images or raw PDF pages).
  */
 
 export const buildTeacherScenePrompt = (contentContext, options = {}) => {
@@ -13,131 +13,75 @@ export const buildTeacherScenePrompt = (contentContext, options = {}) => {
   } = options;
 
   const levelInstructions = {
-    beginner: 'Use simple, friendly language, rich everyday analogies, and clear step-by-step logic without overwhelming jargon.',
-    school: 'Use clear foundational terminology, relatable examples, engaging questions, and easy-to-follow diagrams.',
-    college: 'Provide solid conceptual grounding, formal definitions, systematic flowcharts, and academic depth.',
-    intermediate: 'Balance practical mechanics, architectural trade-offs, real-world industry use cases, and technical precision.',
-    advanced: 'Dive deep into architectural nuances, algorithmic details, edge cases, underlying mechanics, and complex relationships.',
-  };
-
-  const styleInstructions = {
-    whiteboard: 'Emphasize sketch-like progression, drawing steps out sequentially, handwritten-style keyword highlights.',
-    infographic: 'Emphasize sleek metric cards, clean process flows, bold statistics, and modern visual badges.',
-    technical: 'Emphasize node-link architecture, neural network layers, data pipelines, flowcharts, and state transitions.',
-    classroom: 'Emphasize structured board presentation, clear bulleted reveals, key definition callouts, and checkpoint questions.',
-    storytelling: 'Frame the explanation as a journey: introducing a relatable challenge, exploring how things work, and reaching the "aha!" moment.',
+    beginner: 'Use simple, friendly language, rich everyday analogies, and clear step-by-step intuition.',
+    school: 'Use clear foundational terminology, relatable examples, and easy-to-follow diagrams.',
+    college: 'Provide solid conceptual grounding, formal definitions, and systematic flowcharts.',
+    intermediate: 'Balance practical mechanics, architectural trade-offs, and technical precision.',
+    advanced: 'Dive deep into architectural nuances, algorithmic details, and underlying mechanics.',
   };
 
   const selectedLevel = levelInstructions[learningLevel.toLowerCase()] || levelInstructions.beginner;
-  const selectedStyle = styleInstructions[videoStyle.toLowerCase()] || styleInstructions.technical;
 
   return [
     {
       role: 'system',
-      content: `You are an elite AI Teacher, educational video architect, and master animator.
-Your mission is to understand the provided educational material and teach it through a dynamic, scene-by-scene animated video plan.
+      content: `You are an elite AI Teacher, educational video architect, and programmatic slide designer.
+Your mission is to explain the provided educational material through a structured, animated slide presentation.
 
-PEDAGOGICAL TEACHING RULES:
-1. Do NOT simply read or copy the text. Explain concepts conversationally like a great teacher.
-2. Use conversational phrases such as:
-   - "Let's understand this with a simple example."
-   - "Imagine that you are..."
-   - "Now let's see what happens step by step."
-   - "This is important because..."
-   - "Notice how the data flows from here to there."
-   - "Here's an easy way to remember this."
-3. Every scene MUST have a purposeful visual diagram — NO long static walls of text.
-4. Target learning level: ${learningLevel.toUpperCase()} (${selectedLevel}).
-5. Target visual style: ${videoStyle.toUpperCase()} (${selectedStyle}).
-6. Divide the explanation into 5 to 7 logical scenes (Introduction, Core Concept, Visual Diagram/Process, Analogy/Example, Deep Dive/Misconception, Recap/Check).
+CRITICAL INSTRUCTIONS:
+1. Do NOT summarize or dump raw document text. Explain the topic conversationally as a master teacher.
+2. Every scene MUST correspond to a PROGRAMMATIC SLIDE that will be rendered using code (NOT images, NOT PDF screenshots).
+3. Every scene MUST specify a valid "slide_type":
+   - "cloud_architecture": For cloud concepts, networks, distributed nodes, servers, databases.
+   - "process_flow": For multi-stage pipelines, sequences (e.g., 3 connected stages with arrows).
+   - "bullet_list": For key features, core properties, or layered bulleted reveals.
+   - "comparison": For comparing two approaches (e.g. On-Premise vs Cloud, Old vs New).
+4. "on_screen_text" MUST be punchy and strictly MAX 5 TO 7 WORDS.
+5. "bullet_points" MUST be 2 to 3 concise takeaways (under 8 words each).
+6. "diagram_data" MUST provide structured semantic labels for the diagram (e.g. stage names or node names).
+7. "narration" MUST be natural spoken voiceover text (2-3 sentences).
 
-SUPPORTED DIAGRAM TYPES:
-- "neural_network": Input Layer → Hidden Layers → Output Layer with pulsing synapses
-- "ml_pipeline": Dataset → Training → Model → Prediction flow
-- "process": Step-by-step sequential nodes with animated data transfer
-- "flowchart": Decision points, branch logic, directional arrows
-- "comparison": Side-by-side features, pros vs cons, table comparison
-- "sorting": Animated elements/bars being compared, swapped, ordered
-- "timeline": Chronological milestone nodes with dates and events
-- "architecture": Client-server, database, components, and API relations
-- "code_execution": Code block with line-by-line highlight and output preview
-- "concept_map": Central hub node with radiating branches and keyword tags
-- "formula": Mathematical equation breakdown with highlighted terms
-
-DIAGRAM DATA SPECIFICATION:
-Provide a rich "diagram_data" object for each scene so both Manim and frontend canvas can animate it.
-Example for "ml_pipeline":
-{
-  "steps": ["Dataset", "Training", "Model", "Prediction"],
-  "activeStep": 2,
-  "description": "Data enters training algorithm to produce model"
-}
-Example for "neural_network":
-{
-  "layers": [
-    {"name": "Input", "neurons": 3},
-    {"name": "Hidden", "neurons": 4},
-    {"name": "Output", "neurons": 2}
-  ],
-  "dataFlow": "forward"
-}
-Example for "process" / "flowchart":
-{
-  "nodes": [{"id": 1, "label": "Start"}, {"id": 2, "label": "Analyze"}, {"id": 3, "label": "Result"}],
-  "edges": [{"from": 1, "to": 2, "label": "Feed"}, {"from": 2, "to": 3, "label": "Output"}]
-}
-Example for "comparison":
-{
-  "left": {"title": "Option A", "points": ["Fast", "Simple"]},
-  "right": {"title": "Option B", "points": ["Scalable", "Robust"]}
-}
-Example for "concept_map":
-{
-  "central": "Machine Learning",
-  "branches": ["Supervised", "Unsupervised", "Reinforcement"]
-}
-
-Always return strict, valid JSON ONLY. No markdown formatting outside the JSON.`
+Always return valid, well-formed JSON ONLY. No markdown wrapper outside the JSON.`
     },
     {
       role: 'user',
       content: `Topic: "${topicTitle}"
-Learning Level: ${learningLevel}
+Learning Level: ${learningLevel} (${selectedLevel})
 Visual Style: ${videoStyle}
 
-CONTENT TO TEACH:
-${contentContext.substring(0, 5000)}
+SOURCE MATERIAL SUMMARY:
+${contentContext.substring(0, 4000)}
 
-Create the complete structured lesson plan with 5 to 7 scenes.
+Generate 4 to 5 structured educational scenes teaching "${topicTitle}".
 Return JSON strictly in this structure:
 {
   "title": "Clear educational lesson title",
   "topic": "${topicTitle}",
   "learningLevel": "${learningLevel}",
   "videoStyle": "${videoStyle}",
-  "totalEstimatedDuration": 60,
+  "totalEstimatedDuration": 40,
   "scenes": [
     {
       "scene_id": 1,
-      "title": "Scene headline",
-      "duration": 10,
-      "narration": "Natural, conversational teacher narration (2-3 sentences)",
-      "visual_description": "Precise description of what animates on screen",
-      "animation_steps": [
-        "First step of animation",
-        "Second step of animation",
-        "Final step of animation"
+      "title": "Scene Heading",
+      "slide_type": "cloud_architecture",
+      "on_screen_text": "Short Punchy Text (5-7 Words)",
+      "bullet_points": [
+        "First key takeaway point",
+        "Second key takeaway point",
+        "Third key takeaway point"
       ],
-      "on_screen_text": ["Key 1", "Key 2", "Key 3"],
-      "important_keywords": ["Keyword1", "Keyword2"],
-      "diagram_type": "ml_pipeline",
       "diagram_data": {
-        "steps": ["Dataset", "Training", "Model", "Prediction"],
-        "activeStep": 1,
-        "description": "Raw data collected and prepared"
+        "primary_icon": "cloud",
+        "nodes": ["Storage", "Compute", "Database"],
+        "stages": ["Input", "Process", "Output"],
+        "left_title": "Traditional",
+        "left_points": ["Point 1", "Point 2"],
+        "right_title": "Modern Cloud",
+        "right_points": ["Point 1", "Point 2"]
       },
-      "transition": "fade",
-      "educational_purpose": "introduce_concept"
+      "narration": "Conversational teacher voiceover spoken aloud (2-3 sentences).",
+      "duration_estimate": 9.0
     }
   ]
 }`
@@ -146,7 +90,7 @@ Return JSON strictly in this structure:
 };
 
 /**
- * Prompt to regenerate a single scene if the user wants an improved explanation
+ * Prompt to regenerate a single scene if the user requests refinement
  */
 export const buildSingleSceneRegeneratePrompt = (scene, lessonContext, options = {}) => {
   const { learningLevel = 'beginner', videoStyle = 'technical', feedback = '' } = options;
@@ -154,33 +98,33 @@ export const buildSingleSceneRegeneratePrompt = (scene, lessonContext, options =
   return [
     {
       role: 'system',
-      content: `You are an expert AI Teacher. Regenerate and improve this single video scene.
-Keep the narration conversational, dynamic, and educational. Provide clear diagram instructions.
+      content: `You are an expert AI Teacher and video slide designer. Regenerate and improve this single slide scene.
+Enforce valid "slide_type" ("cloud_architecture", "process_flow", "bullet_list", "comparison"), "on_screen_text" (MAX 5-7 words), "bullet_points" (2-3 items), and natural teacher narration.
 Always respond with valid JSON for that single scene only.`
     },
     {
       role: 'user',
-      content: `Context: ${lessonContext.substring(0, 3000)}
+      content: `Context: ${lessonContext.substring(0, 2500)}
 Current Scene: ${JSON.stringify(scene)}
-User Feedback / Refinement Goal: ${feedback || 'Make it even clearer, more engaging, with intuitive diagram steps'}
+Refinement Goal: ${feedback || 'Make it cleaner, more engaging, with crisp punchy text and code-drawn diagrams'}
 Level: ${learningLevel}
-Style: ${videoStyle}
 
 Return JSON with exactly this single scene structure:
 {
-  "scene_id": ${scene.scene_id},
-  "title": "Scene headline",
-  "duration": 12,
-  "narration": "Improved conversational narration",
-  "visual_description": "Improved visual description",
-  "animation_steps": ["Step 1", "Step 2", "Step 3"],
-  "on_screen_text": ["Key 1", "Key 2"],
-  "important_keywords": ["Keyword1"],
-  "diagram_type": "process",
-  "diagram_data": { ... },
-  "transition": "fade",
-  "educational_purpose": "explain_concept"
+  "scene_id": ${scene.scene_id || 1},
+  "title": "${scene.title || 'Scene Headline'}",
+  "slide_type": "${scene.slide_type || 'process_flow'}",
+  "on_screen_text": "Punchy Concept (5-7 Words)",
+  "bullet_points": ["Point 1", "Point 2", "Point 3"],
+  "diagram_data": {
+    "nodes": ["Node A", "Node B", "Node C"],
+    "stages": ["Stage 1", "Stage 2", "Stage 3"]
+  },
+  "narration": "Natural teacher narration to be spoken.",
+  "duration_estimate": ${scene.duration_estimate || scene.duration || 9.0}
 }`
     }
   ];
 };
+
+

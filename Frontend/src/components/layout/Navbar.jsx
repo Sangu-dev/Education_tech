@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Search, Bell, Menu, X, Upload, LogOut, User,
+  Search, Menu, Upload, LogOut, User,
   Sparkles, ChevronDown,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext.jsx';

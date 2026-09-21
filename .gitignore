@@ -1,33 +1,80 @@
 # ── Dependencies ──────────────────────────────────────────────────────────────
 node_modules/
+package-lock.json.backup
 
-# ── Environment Variables (NEVER commit these) ────────────────────────────────
+# ── Environment Variables & Secrets (NEVER commit these) ──────────────────────
 .env
-.env.local
-.env.production
-.env.*.local
+.env.*
+!.env.example
+**/.env
+**/.env.*
+!**/.env.example
+*.pem
+*.key
+*.cert
+*.pfx
+id_rsa*
+*.credentials
 
-# ── Logs ──────────────────────────────────────────────────────────────────────
+# ── Python & Bytecode Caches ──────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.venv/
+ENV/
+*.egg-info/
+.pytest_cache/
+
+# ── Logs & Debugging ──────────────────────────────────────────────────────────
 logs/
 *.log
 npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
 
 # ── Build Output ──────────────────────────────────────────────────────────────
 dist/
 build/
+.next/
+out/
+coverage/
 
-# ── Uploaded Files ────────────────────────────────────────────────────────────
+# ── Uploaded Files & Temporary Media ──────────────────────────────────────────
 backend/uploads/*
 Backend/uploads/*
-!backend/uploads/.gitkeep
-!Backend/uploads/.gitkeep
+Backend/uploads/**/*
+!backend/uploads/**/.gitkeep
+!Backend/uploads/**/.gitkeep
 Backend/bin/*.exe
 Backend/bin/*
+
+# ── Video & Media Render Output ───────────────────────────────────────────────
+media/
+Backend/media/
+*.mp4
+!Frontend/public/**/*.mp4
+*.webm
+test_*.mp4
+test_*.png
+test_*.mp3
+visual_test_*
 
 # ── OS Files ──────────────────────────────────────────────────────────────────
 .DS_Store
 Thumbs.db
+desktop.ini
 
-# ── IDE Files ─────────────────────────────────────────────────────────────────
+# ── IDE & Editor Files ────────────────────────────────────────────────────────
 .vscode/
 .idea/
+*.swp
+*.swo
+*.tmp
+*~
+

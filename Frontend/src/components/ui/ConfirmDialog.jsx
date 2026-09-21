@@ -1,4 +1,3 @@
-import { motion } from 'framer-motion';
 import { AlertTriangle } from 'lucide-react';
 import Modal from './Modal.jsx';
 import Button from './Button.jsx';
@@ -28,7 +27,7 @@ export default function ConfirmDialog({
           <Button variant="ghost" className="flex-1" onClick={onClose} disabled={loading}>
             {cancelText}
           </Button>
-          <Button variant="danger" className="flex-1" onClick={onConfirm} loading={loading}>
+          <Button variant={variant} className="flex-1" onClick={onConfirm} loading={loading}>
             {confirmText}
           </Button>
         </div>

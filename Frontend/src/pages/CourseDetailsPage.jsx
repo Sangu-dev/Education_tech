@@ -1,11 +1,11 @@
 import { useState } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   BookOpen, ChevronDown, ChevronRight, Play, MessageSquare,
-  Trophy, Clock, BarChart3, Loader2, ChevronLeft, Sparkles,
-  Lock, CheckCircle2,
+  Trophy, Clock, BarChart3, Loader2, Sparkles,
+  CheckCircle2,
 } from 'lucide-react';
 import DashboardLayout from '../components/layout/DashboardLayout.jsx';
 import ProgressRing from '../components/ui/ProgressRing.jsx';
@@ -14,7 +14,6 @@ import { progressAPI } from '../api/progress.js';
 
 export default function CourseDetailsPage() {
   const { courseId } = useParams();
-  const navigate = useNavigate();
   const [openChapters, setOpenChapters] = useState({});
   const [openTopics, setOpenTopics] = useState({});
 
@@ -26,7 +25,6 @@ export default function CourseDetailsPage() {
 
   const course = courseData;
   const chapters = courseData?.chapters || [];
-  const chaptersLoading = false; // included in courseLoading
 
   const { data: progressData } = useQuery({
     queryKey: ['progress', courseId],
@@ -198,7 +196,7 @@ export default function CourseDetailsPage() {
                           exit={{ height: 0, opacity: 0 }}
                           className="border-t border-dark-border overflow-hidden"
                         >
-                          {chapter.topics.map((topic, ti) => (
+                          {chapter.topics.map((topic) => (
                             <div key={topic._id} className="border-b border-dark-border last:border-0">
                               <div
                                 className="flex items-center gap-3 px-6 py-3 cursor-pointer hover:bg-brand-500/5 transition-colors"
@@ -219,7 +217,7 @@ export default function CourseDetailsPage() {
                                     animate={{ height: 'auto', opacity: 1 }}
                                     exit={{ height: 0, opacity: 0 }}
                                   >
-                                    {topic.lessons.map((lesson, li) => {
+                                    {topic.lessons.map((lesson) => {
                                       const done = completedIds.has(lesson._id);
                                       return (
                                         <Link

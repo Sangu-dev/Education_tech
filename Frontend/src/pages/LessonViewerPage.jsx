@@ -6,7 +6,7 @@ import ReactMarkdown from 'react-markdown';
 import {
   ChevronLeft, ChevronRight, CheckCircle2, Clock,
   BookOpen, Menu, X, Trophy, Loader2, CheckCheck,
-  Film, FileText,
+  Film, FileText, Download,
 } from 'lucide-react';
 import DashboardLayout from '../components/layout/DashboardLayout.jsx';
 import VideoLessonPlayer from '../components/ui/VideoLessonPlayer.jsx';
@@ -21,6 +21,31 @@ export default function LessonViewerPage() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [viewMode, setViewMode] = useState('video'); // 'video' | 'notes'
   const startTimeRef = useRef(Date.now());
+
+  const handleExportNotes = (currentLesson) => {
+    if (!currentLesson) return;
+    const markdownContent = `# ${currentLesson.title}
+
+## 📌 Summary
+${currentLesson.summary || 'No summary available.'}
+
+## 📖 Content
+${currentLesson.content || ''}
+
+${currentLesson.keyTakeaways?.length > 0 ? `## 💡 Key Takeaways\n${currentLesson.keyTakeaways.map((t) => `- ${t}`).join('\n')}\n` : ''}
+${currentLesson.examples?.length > 0 ? `## 🔬 Examples\n${currentLesson.examples.map((ex) => `### ${ex.title}\n${ex.description}`).join('\n\n')}\n` : ''}
+`;
+    const blob = new Blob([markdownContent], { type: 'text/markdown;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${(currentLesson.title || 'Lesson').replace(/[^a-zA-Z0-9_-]/g, '_')}_Notes.md`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    toast.success('Notes exported as Markdown! 📄');
+  };
 
   const { data: lesson, isLoading: lessonLoading } = useQuery({
     queryKey: ['lesson', lessonId],
@@ -270,6 +295,27 @@ export default function LessonViewerPage() {
                     initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0 }}
                   >
+                    {/* Notes Action Toolbar */}
+                    <div className="flex items-center justify-between mb-4 px-1">
+                      <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                        Summarized Educational Notes
+                      </span>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => handleExportNotes(lesson)}
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-brand-500/10 text-brand-600 dark:text-brand-400 border border-brand-500/30 hover:bg-brand-500/20 transition-colors shadow-sm"
+                        >
+                          <Download size={13} /> Export Markdown
+                        </button>
+                        <button
+                          onClick={() => window.print()}
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 dark:bg-dark-card border border-slate-200 dark:border-dark-border text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-dark-border transition-colors shadow-sm"
+                        >
+                          Print / Save PDF
+                        </button>
+                      </div>
+                    </div>
+
                     <div className="p-6 md:p-8 bg-white dark:bg-dark-card border border-slate-200 dark:border-dark-border rounded-2xl shadow-sm transition-colors">
                       <div className="prose dark:prose-invert prose-slate max-w-none
                         prose-headings:font-display prose-headings:text-slate-900 dark:prose-headings:text-white

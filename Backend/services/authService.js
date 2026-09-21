@@ -104,6 +104,7 @@ export const forgotPassword = async (email) => {
   try {
     await sendPasswordResetEmail(email, user.name, resetUrl);
   } catch (error) {
+    logger.error(`Failed to send password reset email to ${email}: ${error.message}`);
     user.passwordResetToken = undefined;
     user.passwordResetExpires = undefined;
     await user.save({ validateBeforeSave: false });

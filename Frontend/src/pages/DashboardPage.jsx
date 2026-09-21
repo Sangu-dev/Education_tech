@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
-  BookOpen, Clock, Trophy, TrendingUp, Upload,
+  BookOpen, Clock, TrendingUp, Upload,
   ChevronRight, Flame, Zap, Star, ArrowRight,
 } from 'lucide-react';
 import DashboardLayout from '../components/layout/DashboardLayout.jsx';
