@@ -1,0 +1,26 @@
+{
+  "watch": [
+    "server.js",
+    "ai",
+    "config",
+    "controllers",
+    "middleware",
+    "models",
+    "routes",
+    "services",
+    "utils"
+  ],
+  "ignore": [
+    "uploads/**",
+    "logs/**",
+    "bin/**",
+    "node_modules/**",
+    "temp_*",
+    "*.mp4",
+    "*.mp3",
+    "*.svg",
+    "*.json",
+    "*.log"
+  ],
+  "ext": "js,mjs,cjs"
+}

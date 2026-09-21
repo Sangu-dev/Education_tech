@@ -21,6 +21,8 @@ backend/uploads/*
 Backend/uploads/*
 !backend/uploads/.gitkeep
 !Backend/uploads/.gitkeep
+Backend/bin/*.exe
+Backend/bin/*
 
 # ── OS Files ──────────────────────────────────────────────────────────────────
 .DS_Store
