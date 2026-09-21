@@ -7,7 +7,8 @@
   "scripts": {
     "start": "node server.js",
     "dev": "nodemon --config nodemon.json server.js",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "test": "node tests/e2ePipeline.test.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
@@ -19,6 +20,7 @@
     "express-mongo-sanitize": "^2.2.0",
     "express-rate-limit": "^7.3.1",
     "express-validator": "^7.1.0",
+    "ffmpeg-static": "^5.3.0",
     "groq-sdk": "^0.7.0",
     "helmet": "^7.1.0",
     "jsonwebtoken": "^9.0.2",

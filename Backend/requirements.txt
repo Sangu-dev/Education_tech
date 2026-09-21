@@ -1,0 +1,8 @@
+# Backend Python Dependencies for ELearnAI Video & Audio Engine
+edge-tts>=7.0.0
+Pillow>=10.0.0
+numpy>=1.26.0
+imageio>=2.37.0
+imageio-ffmpeg>=0.5.1
+moviepy>=2.0.0
+
