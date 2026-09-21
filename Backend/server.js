@@ -6,6 +6,7 @@ import compression from 'compression';
 import cors from 'cors';
 import mongoSanitize from 'express-mongo-sanitize';
 import path from 'path';
+import fs from 'fs';
 import { fileURLToPath } from 'url';
 
 import { connectDB } from './config/db.js';
@@ -24,11 +25,18 @@ import quizRoutes from './routes/quizRoutes.js';
 import searchRoutes from './routes/searchRoutes.js';
 import profileRoutes from './routes/profileRoutes.js';
 import translateRoutes from './routes/translateRoutes.js';
+import videoRoutes from './routes/videoRoutes.js';
 
 // dotenv is already loaded at the top of this file via 'import dotenv/config'
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+// Ensure Backend/bin (ffmpeg) is in PATH
+const binDir = path.join(__dirname, 'bin');
+if (fs.existsSync && binDir) {
+  process.env.PATH = `${binDir}${path.delimiter}${process.env.PATH || ''}`;
+}
 
 const app = express();
 
@@ -78,6 +86,7 @@ app.use('/api/quiz', quizRoutes);
 app.use('/api/search', searchRoutes);
 app.use('/api/profile', profileRoutes);
 app.use('/api/translate', translateRoutes);
+app.use('/api/video', videoRoutes);
 
 // ─── Error Handling ────────────────────────────────────────────────────────────
 app.use(notFound);

@@ -3,14 +3,41 @@ import fs from 'fs';
 import logger from './logger.js';
 
 /**
- * Extract text from a PDF file
+ * Custom page renderer that preserves page numbers and line spacing
+ */
+function renderPageWithStructure(pageData) {
+  const renderOptions = {
+    normalizeWhitespace: true,
+    disableCombineTextItems: false,
+  };
+
+  return pageData.getTextContent(renderOptions).then((textContent) => {
+    let lastY = null;
+    let text = '';
+    for (const item of textContent.items) {
+      if (lastY === null || Math.abs(lastY - item.transform[5]) < 5) {
+        text += (text.length > 0 && !text.endsWith(' ') ? ' ' : '') + item.str;
+      } else {
+        text += '\n' + item.str;
+      }
+      lastY = item.transform[5];
+    }
+    const pageNum = pageData.pageIndex + 1;
+    return `\n\n--- [Page ${pageNum}] ---\n\n${text.trim()}`;
+  });
+}
+
+/**
+ * Extract text from a PDF file with page structure preservation
  * @param {string} filePath - Path to the PDF file
- * @returns {Promise<{text: string, numPages: number, info: object}>}
+ * @returns {Promise<{text: string, numPages: number, info: object, pages: Array}>}
  */
 export const extractTextFromPDF = async (filePath) => {
   try {
     const dataBuffer = fs.readFileSync(filePath);
-    const data = await pdfParse(dataBuffer);
+    const data = await pdfParse(dataBuffer, {
+      pagerender: renderPageWithStructure,
+    });
 
     logger.info(`PDF extracted: ${data.numpages} pages, ~${data.text.length} characters`);
 

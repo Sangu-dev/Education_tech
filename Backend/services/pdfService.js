@@ -1,7 +1,8 @@
 import { extractTextFromPDF } from '../utils/pdfProcessor.js';
 import { splitTextIntoChunks } from '../utils/textChunker.js';
 import { indexCourseContent } from '../rag/retriever.js';
-import { generateCourseFromPDF } from './aiService.js';
+import { generateCourseFromPDF, generateLessonTeacherScenes } from './aiService.js';
+import { buildInitialLessonScenes } from '../controllers/videoController.js';
 import Course from '../models/Course.js';
 import Chapter from '../models/Chapter.js';
 import Topic from '../models/Topic.js';
@@ -11,10 +12,16 @@ import logger from '../utils/logger.js';
 /**
  * Process uploaded PDF: extract → chunk → embed → generate course → save to DB
  */
-export const processPDFAndGenerateCourse = async (userId, fileInfo) => {
+export const processPDFAndGenerateCourse = async (userId, fileInfo, options = {}) => {
   const { path: filePath, originalname, size } = fileInfo;
+  const { learningLevel = 'beginner', videoStyle = 'technical' } = options;
 
-  logger.info(`Starting PDF processing for user ${userId}: ${originalname}`);
+  logger.info(`Starting PDF processing for user ${userId}: ${originalname} (level: ${learningLevel}, style: ${videoStyle})`);
+
+  const validDifficulties = ['beginner', 'school', 'college', 'intermediate', 'advanced'];
+  const normalizedLevel = validDifficulties.includes(learningLevel.toLowerCase())
+    ? learningLevel.charAt(0).toUpperCase() + learningLevel.slice(1).toLowerCase()
+    : 'Beginner';
 
   // 1. Create course placeholder
   const course = await Course.create({
@@ -24,11 +31,13 @@ export const processPDFAndGenerateCourse = async (userId, fileInfo) => {
     pdfName: originalname,
     pdfPath: filePath,
     pdfSize: size,
+    difficulty: normalizedLevel,
+    videoStyle: videoStyle.toLowerCase(),
     status: 'processing',
   });
 
   // Process asynchronously
-  processCourseAsync(course._id, filePath, originalname).catch(async (err) => {
+  processCourseAsync(course._id, filePath, originalname, { learningLevel, videoStyle }).catch(async (err) => {
     logger.error(`Course processing failed for ${course._id}: ${err.message}`);
     await Course.findByIdAndUpdate(course._id, {
       status: 'failed',
@@ -39,7 +48,7 @@ export const processPDFAndGenerateCourse = async (userId, fileInfo) => {
   return course;
 };
 
-const processCourseAsync = async (courseId, filePath, originalname) => {
+const processCourseAsync = async (courseId, filePath, originalname, options = {}) => {
   try {
     // 2. Extract text from PDF
     logger.info(`Extracting text from PDF: ${originalname}`);
@@ -73,7 +82,7 @@ const processCourseAsync = async (courseId, filePath, originalname) => {
 
     // 6. Save to MongoDB
     logger.info(`Saving course structure to MongoDB`);
-    await saveCourseStructure(courseId, courseData);
+    await saveCourseStructure(courseId, courseData, options);
 
     logger.info(`✅ Course ${courseId} processed successfully`);
   } catch (error) {
@@ -82,18 +91,22 @@ const processCourseAsync = async (courseId, filePath, originalname) => {
   }
 };
 
-const saveCourseStructure = async (courseId, courseData) => {
+const saveCourseStructure = async (courseId, courseData, options = {}) => {
   let totalLessons = 0;
+  const { learningLevel = 'beginner', videoStyle = 'technical' } = options;
 
-  const validDifficulties = ['beginner', 'intermediate', 'advanced'];
-  const rawDiff = (courseData.difficulty || '').toLowerCase().trim();
-  const difficulty = validDifficulties.includes(rawDiff) ? rawDiff : 'beginner';
+  const validDifficulties = ['beginner', 'school', 'college', 'intermediate', 'advanced'];
+  const rawDiff = (courseData.difficulty || learningLevel || '').toLowerCase().trim();
+  const difficulty = validDifficulties.includes(rawDiff)
+    ? rawDiff.charAt(0).toUpperCase() + rawDiff.slice(1)
+    : 'Beginner';
 
   // Update course metadata
   await Course.findByIdAndUpdate(courseId, {
     title: courseData.title,
     description: courseData.description,
     difficulty,
+    videoStyle,
     estimatedTime: courseData.estimatedTime,
     learningObjectives: courseData.learningObjectives || [],
     prerequisites: courseData.prerequisites || [],
@@ -107,6 +120,8 @@ const saveCourseStructure = async (courseId, courseData) => {
   });
 
   // Create chapters, topics, lessons
+  let firstLesson = null;
+
   for (let ci = 0; ci < (courseData.chapters || []).length; ci++) {
     const chapterData = courseData.chapters[ci];
 
@@ -131,7 +146,8 @@ const saveCourseStructure = async (courseId, courseData) => {
 
       for (let li = 0; li < (topicData.lessons || []).length; li++) {
         const lessonData = topicData.lessons[li];
-        await Lesson.create({
+        const initialScenes = buildInitialLessonScenes(lessonData);
+        const newLesson = await Lesson.create({
           courseId,
           chapterId: chapter._id,
           topicId: topic._id,
@@ -143,7 +159,13 @@ const saveCourseStructure = async (courseId, courseData) => {
           importantNotes: lessonData.importantNotes || [],
           estimatedTime: lessonData.estimatedTime || 5,
           order: li + 1,
+          videoStatus: 'none',
+          videoStyle: videoStyle.toLowerCase(),
+          learningLevel: learningLevel.toLowerCase(),
+          scenes: initialScenes,
         });
+
+        if (!firstLesson) firstLesson = newLesson;
         totalLessons++;
       }
     }
@@ -154,4 +176,20 @@ const saveCourseStructure = async (courseId, courseData) => {
     status: 'ready',
     totalLessons,
   });
+
+  // Proactively render animated video for the very first lesson in the background
+  if (firstLesson) {
+    import('../controllers/videoController.js')
+      .then(({ processVideoAsync }) => {
+        logger.info(`Starting background video generation for introductory lesson: ${firstLesson.title}`);
+        return processVideoAsync(firstLesson._id, {
+          learningLevel,
+          videoStyle,
+          lang: 'en',
+        });
+      })
+      .catch((err) => {
+        logger.warn(`Background video pre-gen warning: ${err.message}`);
+      });
+  }
 };

@@ -21,8 +21,13 @@ const courseSchema = new mongoose.Schema(
     },
     difficulty: {
       type: String,
-      enum: ['Beginner', 'Intermediate', 'Advanced'],
+      enum: ['Beginner', 'School', 'College', 'Intermediate', 'Advanced'],
       default: 'Beginner',
+    },
+    videoStyle: {
+      type: String,
+      enum: ['whiteboard', 'infographic', 'technical', 'classroom', 'storytelling'],
+      default: 'technical',
     },
     estimatedTime: {
       type: String, // e.g., "4 hours 30 minutes"

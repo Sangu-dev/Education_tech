@@ -79,6 +79,14 @@ export const getLessonById = async (lessonId, userId) => {
     throw createError('Access denied', 403);
   }
 
+  // If scenes are not yet populated, create initial pedagogical scenes
+  if ((!lesson.scenes || lesson.scenes.length === 0) && (lesson.videoStatus === 'none' || lesson.videoStatus === 'failed')) {
+    const { buildInitialLessonScenes } = await import('../controllers/videoController.js');
+    const initialScenes = buildInitialLessonScenes(lesson);
+    lesson.scenes = initialScenes;
+    await Lesson.findByIdAndUpdate(lessonId, { scenes: initialScenes });
+  }
+
   // Get prev/next lessons
   const allLessons = await Lesson.find({ topicId: lesson.topicId._id })
     .sort({ order: 1 })

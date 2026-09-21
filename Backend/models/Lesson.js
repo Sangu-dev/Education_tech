@@ -58,6 +58,56 @@ const lessonSchema = new mongoose.Schema(
       type: Number,
       required: true,
     },
+    // AI Teacher Animated Video fields
+    videoStatus: {
+      type: String,
+      enum: ['none', 'pending', 'processing', 'ready', 'failed'],
+      default: 'none',
+    },
+    videoProgress: {
+      type: Number,
+      default: 0,
+    },
+    videoProgressStep: {
+      type: String,
+      default: '',
+    },
+    videoUrl: {
+      type: String,
+      default: null,
+    },
+    videoStyle: {
+      type: String,
+      default: 'technical',
+    },
+    learningLevel: {
+      type: String,
+      default: 'beginner',
+    },
+    scenes: [
+      {
+        scene_id: { type: Number, required: true },
+        title: { type: String, required: true },
+        duration: { type: Number, default: 10 },
+        narration: { type: String, required: true },
+        visual_description: { type: String },
+        animation_steps: [{ type: String }],
+        on_screen_text: [{ type: String }],
+        important_keywords: [{ type: String }],
+        diagram_type: {
+          type: String,
+          default: 'concept_map',
+        },
+        diagram_data: {
+          type: mongoose.Schema.Types.Mixed,
+          default: {},
+        },
+        transition: { type: String, default: 'fade' },
+        educational_purpose: { type: String, default: 'explain_concept' },
+        audioUrl: { type: String, default: null },
+        videoClipUrl: { type: String, default: null },
+      },
+    ],
   },
   {
     timestamps: true,

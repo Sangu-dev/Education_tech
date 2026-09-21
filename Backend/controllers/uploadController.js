@@ -9,7 +9,8 @@ export const uploadPDF = asyncHandler(async (req, res) => {
     throw createError('No PDF file uploaded', 400);
   }
 
-  const course = await processPDFAndGenerateCourse(req.user._id, req.file);
+  const { learningLevel = 'beginner', videoStyle = 'technical' } = req.body;
+  const course = await processPDFAndGenerateCourse(req.user._id, req.file, { learningLevel, videoStyle });
 
   sendCreated(res, { course }, 'PDF uploaded successfully. Course generation started.');
 });
