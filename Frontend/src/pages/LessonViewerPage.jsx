@@ -75,22 +75,25 @@ export default function LessonViewerPage() {
   }, [lessonId]);
 
   const sidebarContent = (
-    <div className="flex flex-col h-full bg-dark-200 border-r border-dark-border overflow-hidden">
-      <div className="flex items-center justify-between p-4 border-b border-dark-border">
-        <h3 className="text-white font-semibold text-sm">Course Content</h3>
-        <button onClick={() => setSidebarOpen(false)} className="lg:hidden text-slate-400 hover:text-white">
-          <X size={16} />
+    <div className="flex flex-col h-full bg-white dark:bg-dark-200 border-r border-slate-200 dark:border-dark-border overflow-hidden transition-colors">
+      <div className="flex items-center justify-between p-4 border-b border-slate-200 dark:border-dark-border">
+        <h3 className="text-slate-900 dark:text-white font-semibold text-sm">Course Content</h3>
+        <button
+          onClick={() => setSidebarOpen(false)}
+          className="lg:hidden text-slate-400 hover:text-slate-700 dark:hover:text-white p-1 rounded-md"
+        >
+          <X size={18} />
         </button>
       </div>
       <div className="flex-1 overflow-y-auto p-3">
         {chapters?.map((chapter, ci) => (
           <div key={chapter._id} className="mb-4">
-            <p className="text-xs text-slate-500 font-semibold uppercase tracking-widest px-2 mb-2">
+            <p className="text-[11px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-wider px-2 mb-2">
               {ci + 1}. {chapter.title}
             </p>
             {chapter.topics?.map(topic => (
               <div key={topic._id} className="mb-2">
-                <p className="text-xs text-slate-600 px-2 mb-1 font-medium">{topic.title}</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400 px-2 mb-1.5 font-semibold">{topic.title}</p>
                 {topic.lessons?.map(l => {
                   const done = completedIds.has(l._id);
                   const active = l._id === lessonId;
@@ -98,12 +101,14 @@ export default function LessonViewerPage() {
                     <button
                       key={l._id}
                       onClick={() => navigate(`/courses/${courseId}/lessons/${l._id}`)}
-                      className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-left transition-all text-xs mb-0.5
-                        ${active ? 'bg-brand-500/15 text-brand-400 border border-brand-500/20' : 'text-slate-400 hover:bg-dark-border hover:text-slate-200'}`}
+                      className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-left transition-all text-xs mb-1 font-medium
+                        ${active
+                          ? 'bg-brand-500/10 dark:bg-brand-500/20 text-brand-600 dark:text-brand-400 border border-brand-500/30 font-semibold shadow-sm'
+                          : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-dark-border hover:text-slate-900 dark:hover:text-slate-200'}`}
                     >
                       {done
-                        ? <CheckCircle2 size={12} className="text-green-400 shrink-0" />
-                        : <div className={`w-3 h-3 rounded-full border shrink-0 ${active ? 'border-brand-400 bg-brand-400' : 'border-slate-600'}`} />
+                        ? <CheckCircle2 size={13} className="text-emerald-500 shrink-0" />
+                        : <div className={`w-3 h-3 rounded-full border shrink-0 ${active ? 'border-brand-500 bg-brand-500' : 'border-slate-300 dark:border-slate-600'}`} />
                       }
                       <span className="truncate">{l.title}</span>
                     </button>
@@ -136,55 +141,58 @@ export default function LessonViewerPage() {
         {/* Main Content */}
         <div className="flex-1 overflow-y-auto">
           {/* Lesson Topbar */}
-          <div className="sticky top-0 z-10 flex items-center justify-between px-4 py-3 bg-dark-200/90 backdrop-blur border-b border-dark-border">
+          <div className="sticky top-0 z-10 flex items-center justify-between px-4 py-3 bg-white/90 dark:bg-dark-200/90 backdrop-blur border-b border-slate-200 dark:border-dark-border transition-colors">
             <div className="flex items-center gap-3">
               <button
                 onClick={() => setSidebarOpen(o => !o)}
-                className="lg:hidden p-2 rounded-lg text-slate-400 hover:text-white hover:bg-dark-border transition-colors"
+                className="lg:hidden p-2 rounded-lg text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-dark-border transition-colors"
               >
                 <Menu size={18} />
               </button>
-              <Link to={`/courses/${courseId}`} className="flex items-center gap-1.5 text-sm text-slate-400 hover:text-brand-400 transition-colors">
-                <BookOpen size={15} />
+              <Link
+                to={`/courses/${courseId}`}
+                className="flex items-center gap-1.5 text-sm font-medium text-slate-600 hover:text-brand-600 dark:text-slate-400 dark:hover:text-brand-400 transition-colors"
+              >
+                <BookOpen size={16} />
                 <span className="hidden sm:inline">Back to Course</span>
               </Link>
             </div>
 
             <div className="flex items-center gap-2">
               {/* View toggle */}
-              <div className="flex items-center bg-dark-card border border-dark-border rounded-lg p-0.5 gap-0.5">
+              <div className="flex items-center bg-slate-100 dark:bg-dark-card border border-slate-200 dark:border-dark-border rounded-lg p-0.5 gap-0.5">
                 <button
                   id="video-mode-btn"
                   onClick={() => setViewMode('video')}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all
-                    ${viewMode === 'video' ? 'bg-brand-500 text-white shadow-sm' : 'text-slate-400 hover:text-white'}`}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-all
+                    ${viewMode === 'video' ? 'bg-brand-500 text-white shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}
                 >
                   <Film size={13} /> Video
                 </button>
                 <button
                   id="notes-mode-btn"
                   onClick={() => setViewMode('notes')}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all
-                    ${viewMode === 'notes' ? 'bg-brand-500 text-white shadow-sm' : 'text-slate-400 hover:text-white'}`}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-all
+                    ${viewMode === 'notes' ? 'bg-brand-500 text-white shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}
                 >
                   <FileText size={13} /> Notes
                 </button>
               </div>
 
               {isCompleted ? (
-                <span className="flex items-center gap-1.5 text-sm text-green-400 font-medium">
-                  <CheckCheck size={16} /> Completed
+                <span className="flex items-center gap-1.5 text-xs sm:text-sm text-emerald-600 dark:text-emerald-400 font-semibold px-2.5 py-1 rounded-md bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/40">
+                  <CheckCheck size={15} /> Completed
                 </span>
               ) : (
                 <button
                   id="mark-complete-btn"
                   onClick={() => markComplete()}
                   disabled={completing}
-                  className="btn-primary py-2 px-4 text-sm flex items-center gap-1.5"
+                  className="btn-primary py-2 px-3.5 sm:px-4 text-xs font-semibold flex items-center gap-1.5 shadow-sm"
                 >
                   {completing
-                    ? <Loader2 size={14} className="animate-spin" />
-                    : <CheckCircle2 size={14} />}
+                    ? <Loader2 size={13} className="animate-spin" />
+                    : <CheckCircle2 size={13} />}
                   Mark Complete
                 </button>
               )}
@@ -195,28 +203,28 @@ export default function LessonViewerPage() {
           <div className="max-w-4xl mx-auto px-4 sm:px-8 py-8">
             {lessonLoading ? (
               <div className="flex items-center justify-center py-20">
-                <Loader2 size={32} className="text-brand-400 animate-spin" />
+                <Loader2 size={32} className="text-brand-500 animate-spin" />
               </div>
             ) : lesson ? (
               <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}>
                 {/* Lesson Header */}
                 <div className="mb-6">
-                  <h1 className="text-2xl md:text-3xl font-display font-bold text-white mb-3">
+                  <h1 className="text-2xl md:text-3xl font-display font-bold text-slate-900 dark:text-white mb-3 tracking-tight">
                     {lesson.title}
                   </h1>
-                  <div className="flex flex-wrap items-center gap-3 text-sm text-slate-400">
+                  <div className="flex flex-wrap items-center gap-3 text-sm text-slate-500 dark:text-slate-400">
                     {lesson.estimatedTime && (
-                      <span className="flex items-center gap-1">
-                        <Clock size={13} /> ~{lesson.estimatedTime} min
+                      <span className="flex items-center gap-1 font-medium">
+                        <Clock size={14} /> ~{lesson.estimatedTime} min
                       </span>
                     )}
                     {currentIndex >= 0 && (
-                      <span className="flex items-center gap-1">
-                        <BookOpen size={13} /> Lesson {currentIndex + 1} of {allLessons.length}
+                      <span className="flex items-center gap-1 font-medium">
+                        <BookOpen size={14} /> Lesson {currentIndex + 1} of {allLessons.length}
                       </span>
                     )}
-                    <span className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-brand-500/10 text-brand-400 text-xs border border-brand-500/20">
-                      <Film size={11} /> AI Video Available
+                    <span className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-brand-500/10 text-brand-600 dark:text-brand-400 text-xs font-semibold border border-brand-500/20">
+                      <Film size={12} /> AI Video Available
                     </span>
                   </div>
                 </div>
@@ -228,19 +236,25 @@ export default function LessonViewerPage() {
                     initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0 }}
                   >
-                    <VideoLessonPlayer lesson={lesson} />
+                    <VideoLessonPlayer
+                      lesson={lesson}
+                      onLessonUpdate={() => {
+                        queryClient.invalidateQueries({ queryKey: ['lesson', lessonId] });
+                        queryClient.invalidateQueries({ queryKey: ['course', courseId] });
+                      }}
+                    />
 
                     {/* Key Takeaways below video */}
                     {lesson.keyTakeaways?.length > 0 && (
-                      <div className="mt-6 p-5 bg-dark-card border border-dark-border rounded-xl">
-                        <h3 className="text-white font-semibold mb-3 flex items-center gap-2">
+                      <div className="mt-6 p-5 sm:p-6 bg-white dark:bg-dark-card border border-slate-200 dark:border-dark-border rounded-2xl shadow-sm transition-colors">
+                        <h3 className="text-slate-900 dark:text-white font-bold text-base mb-3 flex items-center gap-2">
                           💡 Key Takeaways
                         </h3>
-                        <ul className="space-y-2">
+                        <ul className="space-y-2.5">
                           {lesson.keyTakeaways.map((t, i) => (
-                            <li key={i} className="flex items-start gap-2 text-slate-300 text-sm">
-                              <span className="text-brand-400 font-bold shrink-0 mt-0.5">→</span>
-                              {t}
+                            <li key={i} className="flex items-start gap-2.5 text-slate-700 dark:text-slate-300 text-sm leading-relaxed">
+                              <span className="text-brand-500 font-bold shrink-0 mt-0.5">→</span>
+                              <span>{t}</span>
                             </li>
                           ))}
                         </ul>
@@ -256,28 +270,30 @@ export default function LessonViewerPage() {
                     initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0 }}
                   >
-                    <div className="prose prose-invert prose-sm max-w-none
-                      prose-headings:font-display prose-headings:text-white
-                      prose-h1:text-2xl prose-h2:text-xl prose-h3:text-lg
-                      prose-p:text-slate-300 prose-p:leading-relaxed
-                      prose-strong:text-white prose-strong:font-semibold
-                      prose-code:text-brand-300 prose-code:bg-dark-card prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded
-                      prose-pre:bg-dark-card prose-pre:border prose-pre:border-dark-border
-                      prose-blockquote:border-brand-500 prose-blockquote:text-slate-400
-                      prose-ul:text-slate-300 prose-ol:text-slate-300
-                      prose-li:marker:text-brand-400
-                    ">
-                      <ReactMarkdown>{lesson.content || '*No content available*'}</ReactMarkdown>
+                    <div className="p-6 md:p-8 bg-white dark:bg-dark-card border border-slate-200 dark:border-dark-border rounded-2xl shadow-sm transition-colors">
+                      <div className="prose dark:prose-invert prose-slate max-w-none
+                        prose-headings:font-display prose-headings:text-slate-900 dark:prose-headings:text-white
+                        prose-h1:text-2xl prose-h2:text-xl prose-h3:text-lg
+                        prose-p:text-slate-700 dark:prose-p:text-slate-300 prose-p:leading-relaxed
+                        prose-strong:text-slate-900 dark:prose-strong:text-white prose-strong:font-semibold
+                        prose-code:text-brand-600 dark:prose-code:text-brand-300 prose-code:bg-slate-100 dark:prose-code:bg-dark-200 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded
+                        prose-pre:bg-slate-900 prose-pre:text-slate-100 prose-pre:border prose-pre:border-slate-800
+                        prose-blockquote:border-brand-500 prose-blockquote:text-slate-600 dark:prose-blockquote:text-slate-400
+                        prose-ul:text-slate-700 dark:prose-ul:text-slate-300 prose-ol:text-slate-700 dark:prose-ol:text-slate-300
+                        prose-li:marker:text-brand-500
+                      ">
+                        <ReactMarkdown>{lesson.content || '*No content available*'}</ReactMarkdown>
+                      </div>
                     </div>
 
                     {/* Takeaways & Examples */}
                     {lesson.keyTakeaways?.length > 0 && (
-                      <div className="mt-8 p-5 bg-dark-card border border-dark-border rounded-xl">
-                        <h3 className="text-white font-semibold mb-3">💡 Key Takeaways</h3>
+                      <div className="mt-6 p-5 sm:p-6 bg-white dark:bg-dark-card border border-slate-200 dark:border-dark-border rounded-2xl shadow-sm transition-colors">
+                        <h3 className="text-slate-900 dark:text-white font-bold mb-3 flex items-center gap-2">💡 Key Takeaways</h3>
                         <ul className="space-y-2">
                           {lesson.keyTakeaways.map((t, i) => (
-                            <li key={i} className="flex items-start gap-2 text-slate-300 text-sm">
-                              <span className="text-brand-400 font-bold shrink-0">→</span> {t}
+                            <li key={i} className="flex items-start gap-2.5 text-slate-700 dark:text-slate-300 text-sm">
+                              <span className="text-brand-500 font-bold shrink-0">→</span> <span>{t}</span>
                             </li>
                           ))}
                         </ul>
@@ -285,13 +301,13 @@ export default function LessonViewerPage() {
                     )}
 
                     {lesson.examples?.length > 0 && (
-                      <div className="mt-4 p-5 bg-dark-card border border-dark-border rounded-xl">
-                        <h3 className="text-white font-semibold mb-3">🔬 Examples</h3>
+                      <div className="mt-4 p-5 sm:p-6 bg-white dark:bg-dark-card border border-slate-200 dark:border-dark-border rounded-2xl shadow-sm transition-colors">
+                        <h3 className="text-slate-900 dark:text-white font-bold mb-3 flex items-center gap-2">🔬 Examples</h3>
                         <div className="space-y-3">
                           {lesson.examples.map((ex, i) => (
-                            <div key={i} className="border-l-2 border-brand-500 pl-3">
-                              <p className="text-brand-300 font-medium text-sm">{ex.title}</p>
-                              <p className="text-slate-300 text-sm mt-1">{ex.description}</p>
+                            <div key={i} className="border-l-2 border-brand-500 pl-3.5 py-1">
+                              <p className="text-brand-600 dark:text-brand-300 font-semibold text-sm">{ex.title}</p>
+                              <p className="text-slate-600 dark:text-slate-300 text-sm mt-1">{ex.description}</p>
                             </div>
                           ))}
                         </div>
@@ -301,16 +317,16 @@ export default function LessonViewerPage() {
                 )}
 
                 {/* Navigation */}
-                <div className="flex items-center justify-between mt-12 pt-6 border-t border-dark-border">
+                <div className="flex items-center justify-between mt-10 pt-6 border-t border-slate-200 dark:border-dark-border">
                   {prevLesson ? (
                     <button
                       onClick={() => navigate(`/courses/${courseId}/lessons/${prevLesson._id}`)}
-                      className="flex items-center gap-2 btn-ghost"
+                      className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-slate-100 dark:hover:bg-dark-border transition-colors text-slate-700 dark:text-slate-300"
                     >
                       <ChevronLeft size={16} />
                       <div className="text-left">
-                        <p className="text-xs text-slate-500">Previous</p>
-                        <p className="text-sm text-slate-300 max-w-[160px] truncate">{prevLesson.title}</p>
+                        <p className="text-xs text-slate-400 dark:text-slate-500 font-medium">Previous</p>
+                        <p className="text-sm font-semibold max-w-[160px] truncate">{prevLesson.title}</p>
                       </div>
                     </button>
                   ) : <div />}
@@ -322,8 +338,8 @@ export default function LessonViewerPage() {
                       className="flex items-center gap-2 btn-primary py-2 px-5"
                     >
                       <div className="text-right">
-                        <p className="text-xs text-white/60">Next</p>
-                        <p className="text-sm max-w-[160px] truncate">{nextLesson.title}</p>
+                        <p className="text-xs text-white/70">Next</p>
+                        <p className="text-sm font-semibold max-w-[160px] truncate">{nextLesson.title}</p>
                       </div>
                       <ChevronRight size={16} />
                     </button>
@@ -338,7 +354,7 @@ export default function LessonViewerPage() {
                 </div>
               </motion.div>
             ) : (
-              <p className="text-slate-400 text-center py-20">Lesson not found</p>
+              <p className="text-slate-500 dark:text-slate-400 text-center py-20">Lesson not found</p>
             )}
           </div>
         </div>
